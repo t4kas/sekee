@@ -3,9 +3,10 @@
  * ---------------------------------------------------------------------------
  * The gear button in the header opens this: a big modal with a sidebar of
  * category tabs on the left and that tab's controls on the right — replaces
- * the old small `SettingsPopover`. Built for exactly the four tabs it has
- * today (Account, Preferences, Sync, Weather); adding a fifth later is a
- * one-line addition to the `<Tab>`/`<TabPanel>` pairs below, not a redesign.
+ * the old small `SettingsPopover`. Built for exactly the tabs it has today
+ * (Account, Preferences, Personalisation, Sync, Weather); adding another
+ * later is a one-line addition to the `<Tab>`/`<TabPanel>` pairs below, not
+ * a redesign.
  *
  * Reuses `BookmarkDialog.module.css`'s `.overlay` for the dimmed/blurred
  * backdrop — every modal in this app shares that — but defines its own
@@ -37,10 +38,11 @@ import {
   TabPanel,
   Tabs,
 } from 'react-aria-components';
-import { CloseIcon, CloudIcon, SlidersIcon, SunIcon, UserIcon } from '../ui/icons.jsx';
+import { CameraIcon, CloseIcon, CloudIcon, SlidersIcon, SunIcon, UserIcon } from '../ui/icons.jsx';
 import { AuthDialog } from '../Account/AuthDialog.jsx';
 import { AccountTab } from './AccountTab.jsx';
 import { PreferencesTab } from './PreferencesTab.jsx';
+import { PersonalisationTab } from './PersonalisationTab.jsx';
 import { SyncTab } from './SyncTab.jsx';
 import { WeatherTab } from './WeatherTab.jsx';
 import dialogStyles from '../BookmarkDialog/BookmarkDialog.module.css';
@@ -114,6 +116,10 @@ export function SettingsModal({
                   <SlidersIcon size={16} />
                   Preferences
                 </Tab>
+                <Tab id="personalisation" className={styles.tabButton}>
+                  <CameraIcon size={16} />
+                  Personalisation
+                </Tab>
                 <Tab id="sync" className={styles.tabButton}>
                   <CloudIcon size={16} />
                   Sync
@@ -129,7 +135,11 @@ export function SettingsModal({
               </TabPanel>
 
               <TabPanel id="preferences" className={styles.content}>
-                <PreferencesTab
+                <PreferencesTab settings={settings} onSettingsChange={onSettingsChange} />
+              </TabPanel>
+
+              <TabPanel id="personalisation" className={styles.content}>
+                <PersonalisationTab
                   settings={settings}
                   onSettingsChange={onSettingsChange}
                   onNewPhoto={onNewPhoto}

@@ -203,6 +203,49 @@
   color: var(--fg-primary);
 }
 
+/* --- Sub-tabs (e.g. Personalisation's Background/Favorites) ---------------- */
+
+/* A small pill-shaped segmented control, distinct from the sidebar's
+   `.tabButton` list so a sub-tab bar never reads as another sidebar. */
+.subTabList {
+  display: inline-flex;
+  gap: 2px;
+
+  padding: 2px;
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  width: fit-content;
+}
+
+.subTabButton {
+  padding: var(--space-1) var(--space-3);
+  border: none;
+  border-radius: var(--radius-pill);
+
+  font-size: var(--text-sm);
+  color: var(--fg-secondary);
+  background: transparent;
+  cursor: pointer;
+
+  transition:
+    background var(--duration-fast) var(--ease),
+    color var(--duration-fast) var(--ease);
+}
+
+.subTabButton[data-hovered] {
+  color: var(--fg-primary);
+}
+
+.subTabButton[data-focus-visible] {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.subTabButton[data-selected] {
+  color: var(--fg-primary);
+  background: var(--surface-active);
+}
+
 @media (max-width: 560px) {
   .modal {
     height: 100%;

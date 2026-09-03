@@ -10,10 +10,9 @@
   grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
   gap: var(--space-3);
 
-  /* Long favorite lists scroll inside the dialog rather than growing it
-     off-screen. */
-  max-height: 50vh;
-  overflow-y: auto;
+  /* No max-height/overflow of its own — this now lives inside the Settings
+     modal's `.content` panel, which already scrolls the whole tab. A second
+     nested scroll area here would just be confusing. */
   padding: 2px; /* keeps the pinned ring from clipping against the edge */
 }
 

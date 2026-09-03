@@ -141,7 +141,8 @@ version of it.** Click the heart on a photo to save it (signed out, it opens
 the sign-in dialog instead). Once you've favorited a few, "My Favorites"
 appears in the Background dropdown alongside the photo categories, either
 shuffling among them or, if you switch to "Always show one," pinned to
-whichever one you pick in "Manage favorites" (also where you remove any).
+whichever one you pick on the Personalisation tab's Favorites sub-tab (also
+where you remove any).
 Favorites are stored the same way as bookmarks/settings — no separate table.
 
 ---
@@ -186,9 +187,10 @@ src/
 │   ├── BookmarkGrid/        the tile grid + favicon handling
 │   ├── BookmarkDialog/      add/edit form + delete confirmation
 │   ├── SettingsModal/        sidebar-tabbed settings: Account, Preferences,
-│   │                         Sync, Weather
+│   │                         Personalisation, Sync, Weather
 │   ├── Account/              sign-in button + auth dialog
-│   └── Favorites/            the "manage favorites" gallery
+│   └── Favorites/            the favorites grid (Personalisation's Favorites
+│                             sub-tab)
 │
 └── styles/
     ├── tokens.css           every colour, size and timing, as CSS variables
