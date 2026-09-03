@@ -143,6 +143,13 @@ Either way, **no component or hook needs to change**, because their contract —
 { id: 'kagi', name: 'Kagi', queryUrl: 'https://kagi.com/search?q=' }
 ```
 
+To give it a logo in the search bar, find the brand on
+[simpleicons.org](https://simpleicons.org), copy the `d` attribute out of the
+downloaded SVG, and add it to `ENGINE_LOGO_PATHS` in
+`src/components/SearchBar/EngineLogo.jsx` under the same `id`. An engine with
+no entry falls back to its initial, so this step is optional — that's why Bing
+shows a "B" (Simple Icons removed Microsoft's marks over trademark policy).
+
 **Add a background category** — one object in
 `src/services/backgroundCategories.js`; `query` is the Unsplash search term:
 

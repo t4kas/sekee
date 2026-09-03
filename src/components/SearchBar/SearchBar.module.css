@@ -1,19 +1,13 @@
-.wrapper {
+/* The glass pill. It wraps the logo, the SearchField and the submit button,
+   so the three read as one control. */
+.bar {
   display: flex;
   align-items: center;
   gap: var(--space-3);
   width: 100%;
-}
 
-/* The glass pill holding the icon and the input. */
-.field {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  flex: 1;
-  min-width: 0; /* lets the input shrink instead of overflowing the flex row */
-
-  padding: var(--space-3) var(--space-5);
+  /* Tighter on the right so the round button sits just inside the edge. */
+  padding: 6px 7px 6px var(--space-5);
 
   border: 1px solid var(--border);
   border-radius: var(--radius-pill);
@@ -28,13 +22,13 @@
     box-shadow var(--duration-med) var(--ease);
 }
 
-.field:hover {
+.bar:hover {
   background: var(--surface-hover);
 }
 
-/* React Aria puts `data-focus-within` on the SearchField while any child
-   holds focus, which is exactly when we want to light up the pill. */
-.field[data-focus-within] {
+/* `.bar` is a plain div, so this is the standard CSS pseudo-class rather
+   than React Aria's [data-focus-within]. */
+.bar:focus-within {
   background: var(--surface-hover);
   border-color: var(--border-strong);
   box-shadow:
@@ -42,13 +36,33 @@
     0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
 }
 
-.field svg {
+/* --- Engine logo ---------------------------------------------------------- */
+
+.logo {
+  display: flex;
   flex-shrink: 0;
-  color: var(--fg-muted);
+
+  /* Flat white at partial opacity — present, but not competing with the
+     photo behind it. The mark inherits this via `currentColor`. */
+  color: var(--fg-secondary);
+  transition: color var(--duration-med) var(--ease);
+}
+
+.bar:focus-within .logo {
+  color: var(--fg-primary);
+}
+
+/* --- Input ---------------------------------------------------------------- */
+
+/* The SearchField wrapper; the pill's own padding does the spacing. */
+.field {
+  display: flex;
+  flex: 1;
+  min-width: 0; /* lets the input shrink instead of overflowing the flex row */
 }
 
 .input {
-  flex: 1;
+  width: 100%;
   min-width: 0;
 
   border: none;
@@ -68,10 +82,56 @@
   display: none;
 }
 
+/* --- Submit button -------------------------------------------------------- */
+
+.submit {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+
+  width: 36px;
+  height: 36px;
+  padding: 0;
+
+  border: none;
+  border-radius: 50%;
+
+  color: var(--fg-secondary);
+  background: transparent;
+  cursor: pointer;
+
+  transition:
+    background var(--duration-fast) var(--ease),
+    color var(--duration-fast) var(--ease);
+}
+
+.submit[data-hovered] {
+  background: var(--surface-hover);
+  color: var(--fg-primary);
+}
+
+.submit[data-pressed] {
+  background: var(--surface-active);
+}
+
+.submit[data-focus-visible] {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+/* Dimmed while the query is empty, since there's nothing to search for —
+   but not so faint that it reads as broken rather than inactive. */
+.submit[data-disabled] {
+  opacity: 0.5;
+  cursor: default;
+}
+
 @media (max-width: 560px) {
-  /* Not enough room for a separate button — the on-screen keyboard's
-     "Go" key and Enter both still submit. */
-  .wrapper > button {
-    display: none;
+  .bar {
+    padding-left: var(--space-4);
+  }
+
+  .input {
+    font-size: var(--text-md);
   }
 }
