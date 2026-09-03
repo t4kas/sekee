@@ -9,11 +9,17 @@
  * tab. It calls the `refresh()` this tab is handed, which just re-runs each
  * hook's normal load effect (see `useBookmarks.js`/`useSettings.js`) — the
  * button doesn't talk to Supabase directly.
+ *
+ * The "What syncs" card at the bottom is a React Aria `Disclosure` —
+ * collapsed by default so it doesn't compete with the status/button above,
+ * expandable for anyone who wants the specifics. Shown whether signed in or
+ * out, since it's also useful as a preview of what signing in would do.
  */
 
 import { useState } from 'react';
+import { Button as AriaButton, Disclosure, DisclosurePanel, Heading } from 'react-aria-components';
 import { Button } from '../ui/Button.jsx';
-import { CloudIcon, RefreshIcon } from '../ui/icons.jsx';
+import { ChevronDownIcon, CloudIcon, RefreshIcon } from '../ui/icons.jsx';
 import styles from './SettingsModal.module.css';
 
 /**
@@ -62,6 +68,30 @@ export function SyncTab({ user, refreshBookmarks, refreshSettings }) {
       )}
 
       {user && lastSyncedAt && <p className={styles.hint}>Last synced {lastSyncedAt.toLocaleTimeString()}.</p>}
+
+      <Disclosure className={styles.card}>
+        <Heading className={styles.cardHeading}>
+          <AriaButton slot="trigger" className={styles.cardTrigger}>
+            What syncs to your account
+            <ChevronDownIcon size={16} className={styles.cardChevron} />
+          </AriaButton>
+        </Heading>
+        <DisclosurePanel className={styles.cardPanel}>
+          <p>
+            Signed in, these are read from and written to your account instead of just this
+            device:
+          </p>
+          <ul className={styles.cardList}>
+            <li>Bookmarks</li>
+            <li>Settings — search engine, background choice, weather location and units</li>
+            <li>Favorited photos</li>
+          </ul>
+          <p>
+            The Unsplash photo pool (the cached images themselves, not your settings) stays local
+            to each device — it's a cache, not something worth carrying between them.
+          </p>
+        </DisclosurePanel>
+      </Disclosure>
     </div>
   );
 }
