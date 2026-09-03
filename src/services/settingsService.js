@@ -20,7 +20,7 @@ export const DEFAULT_SETTINGS = {
   favoritesMode: 'shuffle', // 'shuffle' | 'fixed'
   pinnedFavoriteId: null, // which favorite to always show when 'fixed'
   weatherLocation: '', // empty = widget is hidden, see WeatherWidget.jsx
-  weatherUnits: 'fahrenheit', // 'celsius' | 'fahrenheit'
+  weatherUnits: 'celsius', // 'celsius' | 'fahrenheit'
 };
 
 /**

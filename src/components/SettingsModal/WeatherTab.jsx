@@ -10,8 +10,8 @@ import { TextField } from '../ui/TextField.jsx';
 import styles from './SettingsModal.module.css';
 
 const WEATHER_UNITS = [
-  { id: 'fahrenheit', name: 'Fahrenheit (°F)' },
   { id: 'celsius', name: 'Celsius (°C)' },
+  { id: 'fahrenheit', name: 'Fahrenheit (°F)' },
 ];
 
 /**
