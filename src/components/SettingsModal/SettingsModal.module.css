@@ -345,6 +345,86 @@
   color: var(--fg-primary);
 }
 
+/* --- Bookmark group order (BookmarksTab.jsx) -------------------------------- */
+
+.groupOrderLabel {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--fg-primary);
+}
+
+.groupOrderList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.groupOrderRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.groupOrderName {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+
+  font-size: var(--text-sm);
+  color: var(--fg-primary);
+}
+
+.groupOrderButtons {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.reorderButton {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--fg-secondary);
+  background: transparent;
+  cursor: pointer;
+
+  transition:
+    background var(--duration-fast) var(--ease),
+    color var(--duration-fast) var(--ease);
+}
+
+.reorderButton[data-hovered] {
+  color: var(--fg-primary);
+  background: var(--surface-hover);
+}
+
+.reorderButton[data-focus-visible] {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.reorderButton[data-disabled] {
+  color: var(--fg-muted);
+  opacity: 0.4;
+  cursor: default;
+}
+
+.reorderIconUp {
+  transform: rotate(180deg);
+}
+
 @media (max-width: 560px) {
   .modal {
     height: 100%;

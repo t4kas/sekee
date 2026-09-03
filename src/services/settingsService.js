@@ -21,6 +21,11 @@ export const DEFAULT_SETTINGS = {
   pinnedFavoriteId: null, // which favorite to always show when 'fixed'
   weatherLocation: '', // empty = widget is hidden, see WeatherWidget.jsx
   weatherUnits: 'celsius', // 'celsius' | 'fahrenheit'
+  // 'custom' respects each bookmark's `order` (drag-and-drop, see
+  // bookmarksService.js) — 'recent' sorts by `lastOpenedAt` instead, and
+  // disables dragging since there's nothing left to manually order. One
+  // global mode rather than per-group, see BookmarkGrid.jsx.
+  bookmarkSortMode: 'custom', // 'custom' | 'recent'
 };
 
 /**

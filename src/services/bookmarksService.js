@@ -10,14 +10,18 @@
  *
  * A bookmark looks like:
  *   {
- *     id:        string,  // stable, generated on create
- *     title:     string,  // what the user sees on the tile
- *     url:       string,  // normalised, always includes a protocol
- *     createdAt: number,  // epoch ms — used to keep ordering stable
+ *     id:           string,       // stable, generated on create
+ *     title:        string,       // what the user sees on the tile
+ *     url:          string,       // normalised, always includes a protocol
+ *     groupId:      string,       // which tab (see bookmarkGroupsService.js)
+ *     order:        number,       // display position WITHIN its group
+ *     createdAt:    number,       // epoch ms
+ *     lastOpenedAt: number|null,  // epoch ms, null = never — see recordBookmarkOpened
  *   }
  */
 
 import { storage, StorageKeys } from './storage.js';
+import { DEFAULT_GROUP_ID } from './bookmarkGroupsService.js';
 
 /** A handful of starter tiles, shown the very first time the app runs so the
  *  grid isn't an empty void. Once the user edits anything, this is never
@@ -137,39 +141,72 @@ export function titleFromUrl(url) {
   }
 }
 
-/** Reads the raw array out of storage, seeding it on first run. */
+/**
+ * Reads the raw array out of storage, seeding it on first run and migrating
+ * any bookmark saved before groups/manual ordering existed — one saved
+ * without a `groupId` goes into the default group, keeping its relative
+ * position via `order: createdAt` (every bookmark from that era already
+ * sorted correctly by `createdAt`, so reusing it as the initial `order`
+ * preserves that order exactly).
+ */
 async function readAll() {
   const stored = await storage.read(StorageKeys.bookmarks);
+  if (!Array.isArray(stored)) return seedBookmarks();
 
-  if (Array.isArray(stored)) return stored;
+  let migrated = false;
+  const next = stored.map((bookmark) => {
+    if (bookmark.groupId && typeof bookmark.order === 'number') return bookmark;
+    migrated = true;
+    return {
+      ...bookmark,
+      groupId: bookmark.groupId ?? DEFAULT_GROUP_ID,
+      order: typeof bookmark.order === 'number' ? bookmark.order : bookmark.createdAt,
+      lastOpenedAt: bookmark.lastOpenedAt ?? null,
+    };
+  });
 
-  // First run: persist the seed list so it behaves like any other data
-  // (the user can edit and delete these tiles straight away).
+  if (migrated) await storage.write(StorageKeys.bookmarks, next);
+  return next;
+}
+
+async function seedBookmarks() {
   const seeded = SEED_BOOKMARKS.map((bookmark, index) => ({
     id: createId(),
     title: bookmark.title,
     url: bookmark.url,
+    groupId: DEFAULT_GROUP_ID,
+    order: index,
     createdAt: Date.now() + index, // +index keeps the original order stable
+    lastOpenedAt: null,
   }));
 
   await storage.write(StorageKeys.bookmarks, seeded);
   return seeded;
 }
 
-/** @returns {Promise<Array>} all bookmarks, oldest first. */
+/** @returns {Promise<Array>} all bookmarks, across every group, ordered
+ *  within each group by `order` — filtering to one group is the caller's
+ *  job (see `useBookmarkGroups.js`), since it depends on UI state this
+ *  service doesn't know about. */
 export async function listBookmarks() {
   const bookmarks = await readAll();
-  return [...bookmarks].sort((a, b) => a.createdAt - b.createdAt);
+  return [...bookmarks].sort((a, b) => a.order - b.order);
 }
 
 /**
  * Adds a bookmark.
- * @param {{ title?: string, url: string }} input
+ * @param {{ title?: string, url: string, groupId?: string }} input
  * @returns {Promise<Array>} the full updated list
  */
-export async function createBookmark({ title, url }) {
+export async function createBookmark({ title, url, groupId }) {
   const normalisedUrl = normaliseUrl(url);
   const bookmarks = await readAll();
+  const targetGroupId = groupId ?? DEFAULT_GROUP_ID;
+
+  // Appending within the target group, not the whole list, so a new
+  // bookmark always lands last in the tab it was added to rather than
+  // wherever the global array happened to end.
+  const siblingCount = bookmarks.filter((bookmark) => bookmark.groupId === targetGroupId).length;
 
   const next = [
     ...bookmarks,
@@ -177,7 +214,10 @@ export async function createBookmark({ title, url }) {
       id: createId(),
       title: title?.trim() || titleFromUrl(normalisedUrl),
       url: normalisedUrl,
+      groupId: targetGroupId,
+      order: siblingCount,
       createdAt: Date.now(),
+      lastOpenedAt: null,
     },
   ];
 
@@ -186,13 +226,24 @@ export async function createBookmark({ title, url }) {
 }
 
 /**
- * Updates one bookmark in place.
+ * Updates one bookmark in place — including moving it to a different group,
+ * which appends it to the end of that group (same reasoning as
+ * `createBookmark`'s `siblingCount`) rather than trying to preserve a
+ * position that was only ever meaningful in the old group.
  * @param {string} id
- * @param {{ title?: string, url?: string }} changes
+ * @param {{ title?: string, url?: string, groupId?: string }} changes
  * @returns {Promise<Array>} the full updated list
  */
 export async function updateBookmark(id, changes) {
   const bookmarks = await readAll();
+
+  const movingToGroupId =
+    changes.groupId && changes.groupId !== bookmarks.find((bookmark) => bookmark.id === id)?.groupId
+      ? changes.groupId
+      : null;
+  const newOrderInGroup = movingToGroupId
+    ? bookmarks.filter((bookmark) => bookmark.groupId === movingToGroupId).length
+    : null;
 
   const next = bookmarks.map((bookmark) => {
     if (bookmark.id !== id) return bookmark;
@@ -202,8 +253,71 @@ export async function updateBookmark(id, changes) {
       ...bookmark,
       url,
       title: changes.title?.trim() || titleFromUrl(url),
+      groupId: movingToGroupId ?? bookmark.groupId,
+      order: newOrderInGroup ?? bookmark.order,
     };
   });
+
+  await storage.write(StorageKeys.bookmarks, next);
+  return next;
+}
+
+/**
+ * Rewrites `order` for bookmarks within one group to match `orderedIds` —
+ * called after a drag-and-drop reorder in the grid. Ids outside
+ * `orderedIds` (every other group's bookmarks) are left untouched, so the
+ * caller only needs to pass the ids of the group being reordered.
+ * @param {string[]} orderedIds
+ * @returns {Promise<Array>} the full updated list
+ */
+export async function reorderBookmarks(orderedIds) {
+  const bookmarks = await readAll();
+  const orderIndex = new Map(orderedIds.map((id, index) => [id, index]));
+
+  const next = bookmarks.map((bookmark) =>
+    orderIndex.has(bookmark.id) ? { ...bookmark, order: orderIndex.get(bookmark.id) } : bookmark,
+  );
+
+  await storage.write(StorageKeys.bookmarks, next);
+  return next;
+}
+
+/**
+ * Moves every bookmark in `fromGroupId` into `toGroupId`, appending them
+ * after whatever's already there. Called by `useBookmarkGroups.js` right
+ * before deleting a group, so nothing gets orphaned pointing at a group
+ * that no longer exists.
+ * @param {string} fromGroupId
+ * @param {string} toGroupId
+ * @returns {Promise<Array>} the full updated list
+ */
+export async function reassignGroup(fromGroupId, toGroupId) {
+  const bookmarks = await readAll();
+  let nextOrder = bookmarks.filter((bookmark) => bookmark.groupId === toGroupId).length;
+
+  const next = bookmarks.map((bookmark) => {
+    if (bookmark.groupId !== fromGroupId) return bookmark;
+    return { ...bookmark, groupId: toGroupId, order: nextOrder++ };
+  });
+
+  await storage.write(StorageKeys.bookmarks, next);
+  return next;
+}
+
+/**
+ * Records that a bookmark was just opened, for the "most recently opened"
+ * sort mode (see `settingsService.js`'s `bookmarkSortMode`). Fire-and-forget
+ * from the caller's point of view — clicking a tile navigates away
+ * immediately, so nothing awaits this — which is fine: the write is already
+ * dispatched before the browser unloads the page.
+ * @param {string} id
+ * @returns {Promise<Array>} the full updated list
+ */
+export async function recordBookmarkOpened(id) {
+  const bookmarks = await readAll();
+  const next = bookmarks.map((bookmark) =>
+    bookmark.id === id ? { ...bookmark, lastOpenedAt: Date.now() } : bookmark,
+  );
 
   await storage.write(StorageKeys.bookmarks, next);
   return next;

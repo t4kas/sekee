@@ -1,0 +1,146 @@
+.wrap {
+  position: relative;
+  width: 100%;
+}
+
+.tabs {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+
+  /* Overflowing tabs are moved into the "More" menu by GroupTabs.jsx's own
+     measurement, not by CSS — this just guards against a flash of
+     unmeasured overflow on the very first paint. */
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.tab {
+  flex-shrink: 0;
+
+  padding: var(--space-2) var(--space-3);
+  border: none;
+  border-radius: var(--radius-pill);
+
+  font-size: var(--text-sm);
+  color: var(--fg-secondary);
+  background: transparent;
+  cursor: pointer;
+
+  transition:
+    background var(--duration-fast) var(--ease),
+    color var(--duration-fast) var(--ease);
+}
+
+.tab:hover {
+  color: var(--fg-primary);
+  background: var(--surface-hover);
+}
+
+.tab:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.tab[data-selected] {
+  color: var(--fg-primary);
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+
+/* Inline rename/add input, sized to sit exactly where a `.tab` would. */
+.tabInput {
+  flex-shrink: 0;
+  width: 120px;
+
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-pill);
+
+  font: inherit;
+  font-size: var(--text-sm);
+  color: var(--fg-primary);
+  background: var(--surface);
+
+  outline: none;
+}
+
+.tabInput:focus-visible {
+  box-shadow: var(--focus-ring);
+}
+
+.addTab {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+
+  width: 28px;
+  height: 28px;
+  padding: 0;
+
+  border: 1px dashed var(--border);
+  border-radius: 50%;
+
+  color: var(--fg-secondary);
+  background: transparent;
+  cursor: pointer;
+
+  transition:
+    background var(--duration-fast) var(--ease),
+    color var(--duration-fast) var(--ease);
+}
+
+.addTab[data-hovered] {
+  color: var(--fg-primary);
+  background: var(--surface-hover);
+}
+
+.addTab[data-focus-visible] {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.overflowTrigger {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+
+  padding: var(--space-2) var(--space-3);
+  border: none;
+  border-radius: var(--radius-pill);
+
+  font-size: var(--text-sm);
+  color: var(--fg-secondary);
+  background: transparent;
+  cursor: pointer;
+
+  transition:
+    background var(--duration-fast) var(--ease),
+    color var(--duration-fast) var(--ease);
+}
+
+.overflowTrigger[data-hovered] {
+  color: var(--fg-primary);
+  background: var(--surface-hover);
+}
+
+.overflowTrigger[data-focus-visible] {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+/* Positioned but never painted — only used to measure natural tab widths.
+   `height: 0` + `overflow: hidden` keeps it out of layout flow entirely
+   without affecting the widths its children report. */
+.measureRow {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: flex;
+  gap: var(--space-1);
+  height: 0;
+  overflow: hidden;
+  visibility: hidden;
+  pointer-events: none;
+}

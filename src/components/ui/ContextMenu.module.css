@@ -1,0 +1,63 @@
+/* A 0-size point, not a visible element — `position: fixed` + the inline
+   left/top (set to the click coordinates) is what makes the menu appear to
+   open exactly where the user right-clicked. */
+.anchor {
+  position: fixed;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+.popover {
+  min-width: 160px;
+
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+
+  background: var(--surface-solid);
+  backdrop-filter: var(--blur);
+  box-shadow: var(--shadow-lg);
+}
+
+.popover[data-entering] {
+  animation: context-menu-in var(--duration-fast) var(--ease);
+}
+
+@keyframes context-menu-in {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+}
+
+.menu {
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-1);
+  outline: none;
+}
+
+.menuItem {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+
+  font-size: var(--text-md);
+  color: var(--fg-primary);
+  cursor: pointer;
+  outline: none;
+}
+
+/* `data-focused` follows the keyboard cursor as well as the mouse, so
+   arrow-key navigation highlights the same way hovering does. */
+.menuItem[data-focused],
+.menuItem[data-hovered] {
+  background: var(--surface-hover);
+}
+
+.menuItemDanger {
+  color: var(--danger);
+}
