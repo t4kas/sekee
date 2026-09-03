@@ -12,9 +12,21 @@
  * It's a `Dialog` inside the `Popover` rather than bare content because the
  * panel holds interactive controls: that gives it the right role and makes
  * focus behave the way people expect.
+ *
+ * NESTING ORDER MATTERS: `TooltipTrigger` goes on the OUTSIDE, wrapping the
+ * whole `DialogTrigger`. Both components hand props to the button through
+ * context, and the inner one wins — so putting the tooltip inside would let
+ * it swallow the props that connect the button to its popover.
  */
 
-import { Button as AriaButton, Dialog, DialogTrigger, Popover } from 'react-aria-components';
+import {
+  Button as AriaButton,
+  Dialog,
+  DialogTrigger,
+  Popover,
+  Tooltip,
+  TooltipTrigger,
+} from 'react-aria-components';
 import { Button } from '../ui/Button.jsx';
 import { Select } from '../ui/Select.jsx';
 import { RefreshIcon, SettingsIcon } from '../ui/icons.jsx';
@@ -31,45 +43,53 @@ import styles from './SettingsPopover.module.css';
  */
 export function SettingsPopover({ settings, onSettingsChange, onNewPhoto }) {
   return (
-    <DialogTrigger>
-      {/* React Aria's own Button, not our wrapper, so DialogTrigger can pass
-          it the props that link it to the popover. */}
-      <AriaButton className={styles.trigger} aria-label="Settings">
-        <SettingsIcon size={19} />
-      </AriaButton>
+    // `delay` is the pause before the tooltip appears, so it stays out of the
+    // way of anyone who knows what a gear does.
+    <TooltipTrigger delay={600} closeDelay={100}>
+      <DialogTrigger>
+        {/* React Aria's own Button, not our styled wrapper, so DialogTrigger
+            can pass it the props that link it to the popover. */}
+        <AriaButton className={styles.trigger} aria-label="Settings">
+          <SettingsIcon size={18} />
+        </AriaButton>
 
-      {/* `bottom end` = below the button, right edges aligned. */}
-      <Popover className={styles.popover} placement="bottom end" offset={8}>
-        <Dialog className={styles.dialog} aria-label="Settings">
-          <Select
-            label="Search engine"
-            items={SEARCH_ENGINES}
-            selectedKey={settings.engineId}
-            onSelectionChange={(engineId) => onSettingsChange({ engineId })}
-          />
+        {/* `bottom end` = below the button, right edges aligned. */}
+        <Popover className={styles.popover} placement="bottom end" offset={8}>
+          <Dialog className={styles.dialog} aria-label="Settings">
+            <Select
+              label="Search engine"
+              items={SEARCH_ENGINES}
+              selectedKey={settings.engineId}
+              onSelectionChange={(engineId) => onSettingsChange({ engineId })}
+            />
 
-          <Select
-            label="Background"
-            items={BACKGROUND_CATEGORIES}
-            selectedKey={settings.categoryId}
-            onSelectionChange={(categoryId) => onSettingsChange({ categoryId })}
-          />
+            <Select
+              label="Background"
+              items={BACKGROUND_CATEGORIES}
+              selectedKey={settings.categoryId}
+              onSelectionChange={(categoryId) => onSettingsChange({ categoryId })}
+            />
 
-          <Button className={styles.newPhoto} onPress={onNewPhoto}>
-            <RefreshIcon size={16} />
-            New photo
-          </Button>
+            <Button className={styles.newPhoto} onPress={onNewPhoto}>
+              <RefreshIcon size={16} />
+              New photo
+            </Button>
 
-          {/* Only shown when there's no API key, so it reads as a hint the
-              first time you run the app rather than permanent clutter. */}
-          {!isUnsplashConfigured && (
-            <p className={styles.hint}>
-              Using the bundled gradients. Add an Unsplash key to{' '}
-              <code>.env.local</code> for photo backgrounds — see the README.
-            </p>
-          )}
-        </Dialog>
-      </Popover>
-    </DialogTrigger>
+            {/* Only shown when there's no API key, so it reads as a hint the
+                first time you run the app rather than permanent clutter. */}
+            {!isUnsplashConfigured && (
+              <p className={styles.hint}>
+                Using the bundled gradients. Add an Unsplash key to{' '}
+                <code>.env.local</code> for photo backgrounds — see the README.
+              </p>
+            )}
+          </Dialog>
+        </Popover>
+      </DialogTrigger>
+
+      <Tooltip className={styles.tooltip} placement="bottom" offset={8}>
+        Settings
+      </Tooltip>
+    </TooltipTrigger>
   );
 }

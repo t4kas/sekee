@@ -1,13 +1,15 @@
+/* 36px to match the search bar's submit button — the app's two icon-only
+   buttons should be the same size. */
 .trigger {
   display: grid;
   place-items: center;
 
-  width: 38px;
-  height: 38px;
+  width: 36px;
+  height: 36px;
   padding: 0;
 
   border: 1px solid var(--border);
-  border-radius: var(--radius-pill);
+  border-radius: 50%;
 
   color: var(--fg-secondary);
   background: var(--surface);
@@ -16,20 +18,76 @@
 
   transition:
     background var(--duration-fast) var(--ease),
+    border-color var(--duration-fast) var(--ease),
     color var(--duration-fast) var(--ease),
-    transform var(--duration-med) var(--ease);
+    box-shadow var(--duration-fast) var(--ease);
+}
+
+/* The icon rotates, not the button — rotating the button would drag its
+   border and background round with it, and a spinning circle reads as a
+   loading spinner. */
+.trigger svg {
+  transition: transform var(--duration-med) var(--ease);
 }
 
 .trigger[data-hovered] {
   background: var(--surface-hover);
+  border-color: var(--border-strong);
   color: var(--fg-primary);
-  /* A slow quarter-turn — a small bit of delight on an otherwise plain icon. */
-  transform: rotate(45deg);
+}
+
+/* Half a tooth. The cog has eight teeth, so it maps onto itself every 45° —
+   the previous 45° turn was mathematically invisible. 22.5° lands the teeth
+   in the gaps, which actually reads as movement. */
+.trigger[data-hovered] svg,
+.trigger[aria-expanded='true'] svg {
+  transform: rotate(22.5deg);
+}
+
+.trigger[data-pressed] {
+  background: var(--surface-active);
+  transform: scale(0.94);
+}
+
+/* Held lit for as long as the panel is open, so the button and the panel
+   read as one object rather than the button snapping back to its resting
+   state the moment the pointer moves into the panel. */
+.trigger[aria-expanded='true'] {
+  background: var(--surface-active);
+  border-color: var(--border-strong);
+  color: var(--fg-primary);
 }
 
 .trigger[data-focus-visible] {
   outline: none;
   box-shadow: var(--focus-ring);
+}
+
+/* --- Tooltip -------------------------------------------------------------- */
+
+.tooltip {
+  padding: var(--space-1) var(--space-3);
+
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+
+  font-size: var(--text-xs);
+  color: var(--fg-primary);
+
+  background: var(--surface-solid);
+  backdrop-filter: var(--blur);
+  box-shadow: var(--shadow-md);
+}
+
+.tooltip[data-entering] {
+  animation: tooltip-in var(--duration-fast) var(--ease);
+}
+
+@keyframes tooltip-in {
+  from {
+    opacity: 0;
+    transform: translateY(-3px);
+  }
 }
 
 .popover {
