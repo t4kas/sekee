@@ -6,10 +6,14 @@
  * app needs to know.
  *
  * `queryUrl` is the search endpoint; the query is appended, URL-encoded.
+ *
+ * `suggest: true` opts an engine into the autofill dropdown in `SearchBar`
+ * (see `services/searchSuggestions.js`). Only Google's suggest endpoint is
+ * wired up today, but the flag is what a future engine would need to join it.
  */
 
 export const SEARCH_ENGINES = [
-  { id: 'google', name: 'Google', queryUrl: 'https://www.google.com/search?q=' },
+  { id: 'google', name: 'Google', queryUrl: 'https://www.google.com/search?q=', suggest: true },
   { id: 'duckduckgo', name: 'DuckDuckGo', queryUrl: 'https://duckduckgo.com/?q=' },
   { id: 'bing', name: 'Bing', queryUrl: 'https://www.bing.com/search?q=' },
   { id: 'brave', name: 'Brave', queryUrl: 'https://search.brave.com/search?q=' },
