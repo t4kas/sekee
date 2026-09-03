@@ -5,8 +5,9 @@ background photo. It's an ordinary web app, not a browser extension — you
 point your browser's homepage or new-tab setting at it.
 
 Built with **React + Vite**, **[React Aria Components]** for the accessible UI
-primitives, and plain CSS Modules for styling. There's no backend: everything
-lives in `localStorage`.
+primitives, and plain CSS Modules for styling. There's no backend of our own:
+everything lives in `localStorage` by default, with an optional Supabase
+account so your bookmarks and settings can follow you to another device.
 
 [React Aria Components]: https://react-aria.adobe.com/
 
@@ -58,6 +59,67 @@ Without a key, the app falls back to four gradient images bundled in
 > built JavaScript. That's fine for a personal page you host yourself, but
 > don't publish the build somewhere public.
 
+### Adding accounts / cloud sync (optional)
+
+Signing in is entirely optional — everything works with just `localStorage`,
+same as before. Signing in additionally syncs your bookmarks and settings to
+a [Supabase](https://supabase.com) project, so they follow you to another
+browser or device.
+
+1. Create a free project at <https://supabase.com>.
+2. Open the project's **SQL Editor** and run:
+
+   ```sql
+   create table public.user_data (
+     user_id uuid not null references auth.users(id) on delete cascade,
+     key text not null,               -- 'bookmarks' | 'settings'
+     value jsonb not null,
+     updated_at timestamptz not null default now(),
+     primary key (user_id, key)
+   );
+
+   alter table public.user_data enable row level security;
+
+   create policy "select own rows" on public.user_data
+     for select using (auth.uid() = user_id);
+   create policy "insert own rows" on public.user_data
+     for insert with check (auth.uid() = user_id);
+   create policy "update own rows" on public.user_data
+     for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
+   create policy "delete own rows" on public.user_data
+     for delete using (auth.uid() = user_id);
+   ```
+
+   One table holds both bookmarks and settings, one row per user per key —
+   the same "one blob per key" shape `storage.js` already uses for
+   `localStorage`. Row Level Security is what actually keeps one user from
+   reading another's data; the app never even tries to query without it.
+
+3. In **Project Settings → API**, copy the **Project URL** and the
+   **anon/public key**.
+4. Add them to `.env.local` (see `.env.example`):
+
+   ```
+   VITE_SUPABASE_URL=your-project-url
+   VITE_SUPABASE_ANON_KEY=your-anon-key
+   ```
+
+5. Restart the dev server. A sign-in button now appears in the header.
+
+By default, Supabase requires confirming a sign-up by email before you can
+sign in — fine for real use, but slow while developing. To skip it locally,
+turn off **Confirm email** under **Authentication → Providers → Email** in
+the project settings.
+
+**What syncs, and when.** Signed in, bookmarks and settings read from and
+write to Supabase instead of `localStorage`; signed out, it's `localStorage`
+as always. The first time you sign in on a device, whatever's already in
+that browser's `localStorage` is merged into your account (local bookmarks
+are added if their URL isn't already there; local settings are kept only if
+you don't have any synced yet) — nothing is ever deleted locally, so this
+can't lose data. Sync is refresh-based, not live: a bookmark added on one
+device shows up elsewhere the next time the app loads there, not instantly.
+
 ---
 
 ## How the code is organised
@@ -68,10 +130,14 @@ src/
 ├── App.jsx                  layout shell; owns which dialog is open
 │
 ├── services/                ← all data access lives here
-│   ├── storage.js               the ONLY file that touches localStorage
+│   ├── storage.js               storage adapter (localStorage, or Supabase
+│   │                            once signed in — see `setActiveAdapter`)
 │   ├── bookmarksService.js      bookmark CRUD + URL validation
 │   ├── settingsService.js       search engine + background preferences
 │   ├── unsplashService.js       photo fetching, caching, Unsplash rules
+│   ├── supabaseClient.js        the Supabase client + `isSupabaseConfigured`
+│   ├── supabaseAdapter.js       the signed-in storage adapter
+│   ├── authService.js           sign up / in / out, wraps Supabase auth
 │   ├── favicons.js              builds favicon image URLs
 │   ├── searchEngines.js         the list of search engines
 │   └── backgroundCategories.js  the list of photo categories
@@ -79,7 +145,8 @@ src/
 ├── hooks/                   ← connects services to React
 │   ├── useBookmarks.js
 │   ├── useSettings.js
-│   └── useBackground.js
+│   ├── useBackground.js
+│   └── useAuth.js               also points `storage` at the right adapter
 │
 ├── components/
 │   ├── ui/                  small styled wrappers around React Aria
@@ -88,7 +155,8 @@ src/
 │   ├── SearchBar/
 │   ├── BookmarkGrid/        the tile grid + favicon handling
 │   ├── BookmarkDialog/      add/edit form + delete confirmation
-│   └── SettingsPopover/
+│   ├── SettingsPopover/
+│   └── Account/              sign-in button + auth dialog
 │
 └── styles/
     ├── tokens.css           every colour, size and timing, as CSS variables
@@ -111,27 +179,31 @@ services.
 
 ---
 
-## Swapping localStorage for a real backend
+## How the storage adapter works
 
-This is the main thing the structure is designed for.
+This is the main thing the structure is designed for, and it's why adding
+accounts (above) didn't touch `bookmarksService.js` or `settingsService.js`
+at all.
 
-Every service function is already `async`, even though `localStorage` is
-synchronous — so the components already `await` their data and handle loading
-states. Moving to something like Supabase means:
+Every service function is `async`, even though `localStorage` is synchronous
+— so components already `await` their data and handle loading states, and
+don't care which backend is actually answering. `storage.js` exports one
+`storage` object with four methods (`read`, `write`, `remove`, `subscribe`);
+underneath, it delegates to whichever *adapter* is currently active:
 
-1. Write a new adapter with the same four methods as
-   `createLocalStorageAdapter()` in `src/services/storage.js`
-   (`read`, `write`, `remove`, `subscribe`).
-2. Change the one line at the bottom of that file:
+- `createLocalStorageAdapter()` — the default, always available.
+- `createSupabaseAdapter(userId)` — used while signed in; see
+  `supabaseAdapter.js`.
 
-   ```js
-   export const storage = createSupabaseAdapter();
-   ```
+`useAuth.js` calls `setActiveAdapter(...)` whenever sign-in state changes,
+which re-points every live `subscribe()` the app has open and re-delivers a
+fresh read — so `useBookmarks`/`useSettings` update immediately without
+needing to know auth exists.
 
-For a proper backend you'd more likely rewrite the bodies of the functions in
-`bookmarksService.js` to issue queries directly (`supabase.from('bookmarks')…`).
-Either way, **no component or hook needs to change**, because their contract —
-"call this async function, get plain data back" — stays the same.
+Adding a different backend later means writing one more adapter with the
+same four methods and deciding when it becomes active — no component or hook
+needs to change, because their contract ("call this async function, get
+plain data back") stays the same.
 
 ---
 
@@ -196,5 +268,7 @@ Typing a few letters jumps to a matching tile. This comes from React Aria's
 ## Not built yet
 
 Deliberately out of scope for now: widgets (clock, weather, to-do), importing
-browser bookmarks, user-uploaded backgrounds, a theming panel, and any kind of
-account or sync.
+browser bookmarks, user-uploaded backgrounds, a theming panel, live sync
+across open tabs/devices while signed in (it's refresh-based — see "Adding
+accounts" above), password reset / OAuth sign-in, and account deletion (drop
+the row from Supabase's Users page in the dashboard for now).

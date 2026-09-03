@@ -87,3 +87,18 @@ export const CameraIcon = (props) => (
     <circle cx="12" cy="13" r="3.5" />
   </Svg>
 );
+
+export const UserIcon = (props) => (
+  <Svg {...props}>
+    <circle cx="12" cy="8" r="4" />
+    <path d="M4 20c0-3.6 3.6-6.5 8-6.5s8 2.9 8 6.5" />
+  </Svg>
+);
+
+export const LogOutIcon = (props) => (
+  <Svg {...props}>
+    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+    <path d="M16 17l5-5-5-5" />
+    <path d="M21 12H9" />
+  </Svg>
+);

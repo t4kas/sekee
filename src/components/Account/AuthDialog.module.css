@@ -1,0 +1,37 @@
+/* The sign-in/sign-up toggle link under the form. React Aria's own Button,
+   not the ui/Button wrapper (see the comment in AuthDialog.jsx), so it can
+   be styled as a plain text link without fighting the wrapper's variants. */
+.toggle {
+  display: block;
+  width: 100%;
+  margin-top: var(--space-4);
+
+  border: none;
+  background: none;
+  padding: 0;
+
+  font-size: var(--text-sm);
+  text-align: center;
+  color: var(--fg-secondary);
+  cursor: pointer;
+}
+
+.toggle[data-hovered] {
+  color: var(--fg-primary);
+  text-decoration: underline;
+}
+
+.toggle[data-focus-visible] {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: var(--radius-sm);
+}
+
+/* Shown instead of the form after signing up when Supabase requires email
+   confirmation — there's nothing left to submit until that happens. */
+.success {
+  margin: 0;
+  font-size: var(--text-md);
+  line-height: 1.5;
+  color: var(--fg-secondary);
+}
