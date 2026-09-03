@@ -147,4 +147,6 @@ export const StorageKeys = {
   settings: 'settings',
   photoCache: 'photo-cache',
   favorites: 'favorites',
+  weatherGeocodeCache: 'weather-geocode-cache',
+  weatherCache: 'weather-cache',
 };

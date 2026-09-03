@@ -59,6 +59,14 @@ Without a key, the app falls back to four gradient images bundled in
 > built JavaScript. That's fine for a personal page you host yourself, but
 > don't publish the build somewhere public.
 
+### The weather widget
+
+Type a city into **Weather location** in the settings panel and a small pill
+showing current conditions appears above the search bar; leave it blank and
+the widget stays hidden. It uses [Open-Meteo](https://open-meteo.com), which
+needs no API key and no `.env` setup — this one works for everyone out of the
+box. See `services/weatherService.js`.
+
 ### Adding accounts / cloud sync (optional)
 
 Signing in is entirely optional — everything works with just `localStorage`,
@@ -151,6 +159,7 @@ src/
 │   ├── bookmarksService.js      bookmark CRUD + URL validation
 │   ├── settingsService.js       search engine + background preferences
 │   ├── unsplashService.js       photo fetching, caching, Unsplash rules
+│   ├── weatherService.js        Open-Meteo geocoding + forecast, caching
 │   ├── supabaseClient.js        the Supabase client + `isSupabaseConfigured`
 │   ├── supabaseAdapter.js       the signed-in storage adapter
 │   ├── authService.js           sign up / in / out, wraps Supabase auth
@@ -163,6 +172,7 @@ src/
 │   ├── useBookmarks.js
 │   ├── useSettings.js
 │   ├── useBackground.js
+│   ├── useWeather.js
 │   ├── useAuth.js               also points `storage` at the right adapter
 │   └── useFavorites.js
 │
@@ -171,6 +181,8 @@ src/
 │   │   ├── Button.jsx  Select.jsx  TextField.jsx  icons.jsx
 │   ├── Background/          full-bleed photo + credit + favorite button
 │   ├── SearchBar/
+│   ├── WeatherWidget/        current-conditions pill, see "The weather
+│   │                         widget" above
 │   ├── BookmarkGrid/        the tile grid + favicon handling
 │   ├── BookmarkDialog/      add/edit form + delete confirmation
 │   ├── SettingsPopover/
@@ -286,8 +298,9 @@ Typing a few letters jumps to a matching tile. This comes from React Aria's
 
 ## Not built yet
 
-Deliberately out of scope for now: widgets (clock, weather, to-do), importing
-browser bookmarks, user-uploaded backgrounds, a theming panel, live sync
+Deliberately out of scope for now: more widgets (clock, to-do — weather is
+built in, see below), importing browser bookmarks, user-uploaded backgrounds,
+a theming panel, live sync
 across open tabs/devices while signed in (it's refresh-based — see "Adding
 accounts" above), password reset / OAuth sign-in, and account deletion (drop
 the row from Supabase's Users page in the dashboard for now).

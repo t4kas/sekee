@@ -39,6 +39,7 @@ import {
 } from 'react-aria-components';
 import { Button } from '../ui/Button.jsx';
 import { Select } from '../ui/Select.jsx';
+import { TextField } from '../ui/TextField.jsx';
 import { RefreshIcon, SettingsIcon } from '../ui/icons.jsx';
 import { FavoritesGallery } from '../Favorites/FavoritesGallery.jsx';
 import { SEARCH_ENGINES } from '../../services/searchEngines.js';
@@ -51,9 +52,14 @@ const FAVORITES_MODES = [
   { id: 'fixed', name: 'Always show one' },
 ];
 
+const WEATHER_UNITS = [
+  { id: 'fahrenheit', name: 'Fahrenheit (°F)' },
+  { id: 'celsius', name: 'Celsius (°C)' },
+];
+
 /**
  * @param {object} props
- * @param {{engineId: string, categoryId: string, favoritesMode: string, pinnedFavoriteId: string|null}} props.settings
+ * @param {{engineId: string, categoryId: string, favoritesMode: string, pinnedFavoriteId: string|null, weatherLocation: string, weatherUnits: string}} props.settings
  * @param {(changes: object) => void} props.onSettingsChange
  * @param {() => void} props.onNewPhoto  discards the cached photos and reloads
  * @param {object|null} props.user
@@ -100,6 +106,20 @@ export function SettingsPopover({
                 items={SEARCH_ENGINES}
                 selectedKey={settings.engineId}
                 onSelectionChange={(engineId) => onSettingsChange({ engineId })}
+              />
+
+              <TextField
+                label="Weather location"
+                placeholder="e.g. Boston"
+                value={settings.weatherLocation}
+                onChange={(weatherLocation) => onSettingsChange({ weatherLocation })}
+              />
+
+              <Select
+                label="Temperature units"
+                items={WEATHER_UNITS}
+                selectedKey={settings.weatherUnits}
+                onSelectionChange={(weatherUnits) => onSettingsChange({ weatherUnits })}
               />
 
               <Select

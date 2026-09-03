@@ -7,12 +7,13 @@
  *
  * Layout, from back to front:
  *   Background   fixed, full-bleed photo + scrim + photographer credit
- *   .content     the centred column: search bar, then bookmarks
+ *   .content     the centred column: weather widget, search bar, then bookmarks
  *   overlays     settings popover (top-right), dialogs (centred)
  */
 
 import { useState } from 'react';
 import { Background } from './components/Background/Background.jsx';
+import { WeatherWidget } from './components/WeatherWidget/WeatherWidget.jsx';
 import { SearchBar } from './components/SearchBar/SearchBar.jsx';
 import { BookmarkGrid } from './components/BookmarkGrid/BookmarkGrid.jsx';
 import { BookmarkDialog } from './components/BookmarkDialog/BookmarkDialog.jsx';
@@ -95,6 +96,7 @@ export default function App() {
         </header>
 
         <main className={styles.content}>
+          <WeatherWidget location={settings.weatherLocation} units={settings.weatherUnits} />
           <SearchBar engineId={settings.engineId} />
 
           <BookmarkGrid
