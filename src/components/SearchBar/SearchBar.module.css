@@ -224,6 +224,23 @@
   background: var(--surface-solid);
   backdrop-filter: var(--blur);
   box-shadow: var(--shadow-lg);
+
+  /* The list is always mounted (see SearchBar.jsx) so this can fade and
+     blur it away on close instead of it popping straight to empty the
+     instant the field is cleared — the counterpart to `.suggestion`'s
+     entrance below, and what makes emptying the field read as one smooth
+     motion back to the starting state rather than content vanishing before
+     `.frame`'s collapse even finishes. */
+  opacity: 1;
+  filter: blur(0);
+  transition:
+    opacity var(--duration-med) var(--ease),
+    filter var(--duration-med) var(--ease);
+}
+
+.frame:not([data-open]) .suggestions {
+  opacity: 0;
+  filter: blur(10px);
 }
 
 .suggestion {
@@ -239,23 +256,30 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 
-  /* Blurs and fades each option in as it appears. Re-keying the `<li>` on
-     every keystroke (see SearchBar.jsx) remounts them, so this replays on
-     each new batch of suggestions rather than just on the dropdown's first
-     open — that's the "blur in ... as the user is typing" effect. */
-  animation: suggestion-blur-in var(--duration-med) var(--ease) both;
+  /* Blurs and fades each option in as it appears. Suggestions are keyed on
+     their own text (see SearchBar.jsx), so a word carried over from the
+     previous batch keeps its element and skips straight to its new
+     position instead of replaying this — only genuinely new suggestions
+     mount fresh and blur in, which is what keeps consecutive batches
+     reading as one smooth update instead of the whole list cutting away.
+     The eased-overshoot curve (rather than the app's standard `--ease`)
+     gives the settle a touch more life to match a bigger, softer blur. */
+  animation: suggestion-blur-in 380ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 @keyframes suggestion-blur-in {
   from {
     opacity: 0;
-    filter: blur(6px);
-    transform: translateY(-2px);
+    filter: blur(10px);
+    transform: translateY(-4px) scale(0.98);
+  }
+  60% {
+    filter: blur(0);
   }
   to {
     opacity: 1;
     filter: blur(0);
-    transform: translateY(0);
+    transform: translateY(0) scale(1);
   }
 }
 
@@ -265,8 +289,19 @@
   background: var(--surface-hover);
 }
 
+/* The part of a suggestion the user actually typed — bold marks it as the
+   "confirmed" prefix, leaving the suggested completion after it in the
+   regular weight. */
+.suggestionMatch {
+  font-weight: 700;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .suggestion {
     animation: none;
+  }
+
+  .suggestions {
+    transition: none;
   }
 }

@@ -43,25 +43,26 @@ export function SearchBar({ engineId }) {
   const [displayValue, setDisplayValue] = useState('');
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const [isOpen, setIsOpen] = useState(false);
-  // Bumped once per *actual* batch of suggestions (see the effect below),
-  // not once per keystroke. Options are keyed on this rather than on
-  // `typedQuery` so the blur-in animation replays exactly when the list's
-  // content changes — a run of backspaces during the debounce window, where
-  // the fetched suggestions haven't changed yet, reuses the same elements
-  // instead of tearing them down and snapping a fresh animation onto them.
-  const [suggestionsVersion, setSuggestionsVersion] = useState(0);
+  // What's actually on screen. This lags one step behind the hook's own
+  // `suggestions` on the way *down* to empty: clearing the field zeroes
+  // `suggestions` the instant the debounce fires, but if the dropdown
+  // followed it immediately the list would vanish blank before the closing
+  // animation even started. Keeping the last non-empty batch rendered here
+  // gives the CSS something to fade and blur away while `.frame` collapses
+  // around it, so emptying the field reads as one smooth motion back to the
+  // starting state rather than a pop followed by an empty shrink.
+  const [renderedSuggestions, setRenderedSuggestions] = useState([]);
 
   const engine = getEngine(engineId);
   const suggestions = useSearchSuggestions(engineId, typedQuery);
   const listboxId = useId();
 
   // A fresh batch of suggestions opens the dropdown (or closes it, if the
-  // batch is empty), drops any highlight left over from the last batch, and
-  // advances the animation version.
+  // batch is empty) and drops any highlight left over from the last batch.
   useEffect(() => {
     setIsOpen(suggestions.length > 0);
     setHighlightedIndex(-1);
-    setSuggestionsVersion((version) => version + 1);
+    if (suggestions.length > 0) setRenderedSuggestions(suggestions);
   }, [suggestions]);
 
   /** Sends a query to the chosen engine, replacing this page. */
@@ -84,7 +85,7 @@ export function SearchBar({ engineId }) {
    *  (`-1` means "no highlight", i.e. back to what was actually typed). */
   function highlight(index) {
     setHighlightedIndex(index);
-    setDisplayValue(index === -1 ? typedQuery : suggestions[index]);
+    setDisplayValue(index === -1 ? typedQuery : renderedSuggestions[index]);
   }
 
   function selectSuggestion(suggestion) {
@@ -183,47 +184,73 @@ export function SearchBar({ engineId }) {
           </Button>
         </div>
 
-        {/* Always present so the frame's second grid track can animate
-            between 0fr and 1fr — unmounting this wrapper along with the list
-            would skip straight to the collapsed state instead of easing
-            there. */}
+        {/* Always mounted — both so `.frame`'s grid track has something to
+            animate between 0fr and 1fr, and so a suggestion that persists
+            across an update keeps its DOM node (see the key below) instead
+            of being torn down and popped back onto screen. */}
         <div className={styles.suggestionsRow}>
-          {isOpen && (
-            <ul className={styles.suggestions} id={listboxId} role="listbox">
-              {suggestions.map((suggestion, index) => (
-                <li
-                  // Keyed on the batch version, so a new fetched batch
-                  // remounts the options (replaying the blur-in animation)
-                  // but a keystroke that hasn't produced new suggestions yet
-                  // — e.g. mid-debounce backspaces — doesn't.
-                  key={`${suggestionsVersion}::${suggestion}`}
-                  id={`${listboxId}-option-${index}`}
-                  role="option"
-                  aria-selected={index === highlightedIndex}
-                  className={styles.suggestion}
-                  style={{ animationDelay: `${index * 20}ms` }}
-                  data-highlighted={index === highlightedIndex || undefined}
-                  // Stops the input from ever losing focus to this click, so
-                  // there's no blur race with `onClick` selecting the suggestion.
-                  onMouseDown={(event) => event.preventDefault()}
-                  // `onMouseMove` rather than `onMouseEnter`: a row that
-                  // appears directly under an already-still cursor (typing
-                  // doesn't move the mouse) can end up "entered" the instant
-                  // it renders, silently overwriting what's typed with a
-                  // suggestion before the user has touched the mouse at all.
-                  // `mousemove` only ever fires from genuine pointer motion,
-                  // so hovering can't hijack the field until the user
-                  // actually moves the mouse over the dropdown.
-                  onMouseMove={() => highlight(index)}
-                  onClick={() => selectSuggestion(suggestion)}
-                >
-                  {suggestion}
-                </li>
-              ))}
-            </ul>
-          )}
+          <ul className={styles.suggestions} id={listboxId} role="listbox">
+            {renderedSuggestions.map((suggestion, index) => (
+              <li
+                // Keyed on the suggestion's own text rather than its batch
+                // or index. A word that carries over between two fetches
+                // (typing "hel" -> "hell" often keeps "hello" in both
+                // lists) then keeps the same DOM node and just slides to
+                // its new position instead of being torn down and
+                // re-blurred-in — that's what makes consecutive batches
+                // read as one smooth update rather than a hard cut. Only
+                // genuinely new suggestions mount fresh and play the
+                // entrance animation.
+                key={suggestion}
+                id={`${listboxId}-option-${index}`}
+                role="option"
+                aria-selected={index === highlightedIndex}
+                className={styles.suggestion}
+                style={{ animationDelay: `${index * 20}ms` }}
+                data-highlighted={index === highlightedIndex || undefined}
+                // Stops the input from ever losing focus to this click, so
+                // there's no blur race with `onClick` selecting the suggestion.
+                onMouseDown={(event) => event.preventDefault()}
+                // `onMouseMove` rather than `onMouseEnter`: a row that
+                // appears directly under an already-still cursor (typing
+                // doesn't move the mouse) can end up "entered" the instant
+                // it renders, silently overwriting what's typed with a
+                // suggestion before the user has touched the mouse at all.
+                // `mousemove` only ever fires from genuine pointer motion,
+                // so hovering can't hijack the field until the user
+                // actually moves the mouse over the dropdown.
+                onMouseMove={() => highlight(index)}
+                onClick={() => selectSuggestion(suggestion)}
+              >
+                <MatchedSuggestion text={suggestion} query={typedQuery} />
+              </li>
+            ))}
+          </ul>
         </div>
       </div>
     </div>
+  );
+}
+
+/**
+ * Renders `text` with the prefix that matches what the user actually typed
+ * bolded — the part they can trust because they typed it themselves — and
+ * the rest (the suggested completion) in the regular weight. Falls back to
+ * plain text when `text` doesn't start with `query` (case-insensitively),
+ * e.g. Google occasionally suggests a corrected spelling.
+ * @param {{ text: string, query: string }} props
+ */
+function MatchedSuggestion({ text, query }) {
+  const trimmedQuery = query.trim();
+  const isPrefixMatch =
+    trimmedQuery.length > 0 && text.toLowerCase().startsWith(trimmedQuery.toLowerCase());
+
+  if (!isPrefixMatch) return text;
+
+  return (
+    <>
+      <strong className={styles.suggestionMatch}>{text.slice(0, trimmedQuery.length)}</strong>
+      {text.slice(trimmedQuery.length)}
+    </>
   );
 }
