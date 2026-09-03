@@ -27,6 +27,59 @@
   flex-shrink: 0;
 }
 
+/* Carried over from the old SettingsPopover.module.css's `.trigger` — same
+   36px circle as the search bar's submit button, so the app's icon-only
+   buttons stay the same size. No `aria-expanded` states or tooltip here:
+   this now just opens SettingsModal, a plain on/off, not a popover. */
+.settingsTrigger {
+  display: grid;
+  place-items: center;
+
+  width: 36px;
+  height: 36px;
+  padding: 0;
+
+  border: 1px solid var(--border);
+  border-radius: 50%;
+
+  color: var(--fg-secondary);
+  background: var(--surface);
+  backdrop-filter: var(--blur);
+  cursor: pointer;
+
+  transition:
+    background var(--duration-fast) var(--ease),
+    border-color var(--duration-fast) var(--ease),
+    color var(--duration-fast) var(--ease),
+    box-shadow var(--duration-fast) var(--ease);
+}
+
+.settingsTrigger svg {
+  transition: transform var(--duration-med) var(--ease);
+}
+
+.settingsTrigger[data-hovered] {
+  background: var(--surface-hover);
+  border-color: var(--border-strong);
+  color: var(--fg-primary);
+}
+
+/* Half a tooth. The cog has eight teeth, so it maps onto itself every 45° —
+   22.5° lands the teeth in the gaps, which reads as movement. */
+.settingsTrigger[data-hovered] svg {
+  transform: rotate(22.5deg);
+}
+
+.settingsTrigger[data-pressed] {
+  background: var(--surface-active);
+  transform: scale(0.94);
+}
+
+.settingsTrigger[data-focus-visible] {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
 /* The centred column. Pushed slightly above true centre — content sitting
    dead-centre reads as low, because we scan from the top. */
 .content {

@@ -112,3 +112,31 @@ export const HeartIcon = ({ filled, ...props }) => (
     <path d="M12 20.5s-7.5-4.6-9.8-9.1C.7 8 2.1 4.6 5.4 3.8c2-.5 4 .3 5.1 2 .3.5.6 1 .8 1.5.2-.5.5-1 .8-1.5 1.1-1.7 3.1-2.5 5.1-2 3.3.8 4.7 4.2 3.2 7.6-2.3 4.5-9.8 9.1-9.8 9.1z" />
   </Svg>
 );
+
+export const CloseIcon = (props) => (
+  <Svg {...props}>
+    <path d="M6 6l12 12M18 6L6 18" />
+  </Svg>
+);
+
+export const CloudIcon = (props) => (
+  <Svg {...props}>
+    <path d="M7 18h10a4 4 0 0 0 .5-7.97A5.5 5.5 0 0 0 7.1 9.02 4 4 0 0 0 7 18Z" />
+  </Svg>
+);
+
+export const SlidersIcon = (props) => (
+  <Svg {...props}>
+    <path d="M4 6h8M16 6h4M4 12h4M12 12h8M4 18h11M19 18h1" />
+    <circle cx="14" cy="6" r="2" />
+    <circle cx="8" cy="12" r="2" />
+    <circle cx="17" cy="18" r="2" />
+  </Svg>
+);
+
+export const SunIcon = (props) => (
+  <Svg {...props}>
+    <circle cx="12" cy="12" r="4.2" />
+    <path d="M12 2.5v2.5M12 19v2.5M4.2 4.2l1.8 1.8M18 18l1.8 1.8M2.5 12H5M19 12h2.5M4.2 19.8 6 18M18 6l1.8-1.8" />
+  </Svg>
+);

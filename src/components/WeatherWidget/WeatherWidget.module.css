@@ -1,0 +1,69 @@
+/* A glass pill sized to its content (not the full search-bar width), the
+   same surface treatment as SearchBar's `.bar` but standalone rather than
+   holding interactive controls. */
+.pill {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  max-width: 100%;
+  overflow: hidden;
+
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+
+  background: var(--surface);
+  backdrop-filter: var(--blur);
+  box-shadow: var(--shadow-md);
+
+  font-size: var(--text-sm);
+  color: var(--fg-secondary);
+  white-space: nowrap;
+}
+
+.pill[data-state='error'] {
+  color: var(--fg-muted);
+}
+
+.icon {
+  flex-shrink: 0;
+  color: var(--fg-primary);
+}
+
+.temperature {
+  font-size: var(--text-md);
+  font-weight: 600;
+  color: var(--fg-primary);
+}
+
+.divider {
+  color: var(--fg-muted);
+}
+
+.condition {
+  color: var(--fg-secondary);
+}
+
+.location {
+  color: var(--fg-muted);
+}
+
+/* Long condition/location text truncates rather than forcing the pill wider
+   than the content column. `min-width: 0` overrides the flex item default
+   (content size) that would otherwise stop these from shrinking at all. */
+.condition,
+.location {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (max-width: 560px) {
+  .pill {
+    font-size: var(--text-xs);
+  }
+
+  .temperature {
+    font-size: var(--text-sm);
+  }
+}

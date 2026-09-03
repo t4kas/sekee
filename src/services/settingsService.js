@@ -19,6 +19,8 @@ export const DEFAULT_SETTINGS = {
   // only meaningful when it's selected. See `useBackground.js`.
   favoritesMode: 'shuffle', // 'shuffle' | 'fixed'
   pinnedFavoriteId: null, // which favorite to always show when 'fixed'
+  weatherLocation: '', // empty = widget is hidden, see WeatherWidget.jsx
+  weatherUnits: 'fahrenheit', // 'celsius' | 'fahrenheit'
 };
 
 /**

@@ -91,7 +91,7 @@ Two specificity traps:
 - When a component needs to fully restyle a button's size and shape, it uses
   React Aria's `Button` directly rather than the `ui/Button.jsx` wrapper. Mixing
   them leaves two single-class rules of equal specificity fighting, with the
-  winner decided by stylesheet order. `SearchBar` and `SettingsPopover` both do
+  winner decided by stylesheet order. `SearchBar` and `SettingsModal` both do
   this deliberately.
 
 Prefer React Aria's state attributes (`data-hovered`, `data-pressed`,
