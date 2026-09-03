@@ -1,11 +1,15 @@
 /**
  * Weather service
  * ---------------------------------------------------------------------------
- * Fetches current conditions for a user-typed location string (e.g.
- * "Boston"). Two Open-Meteo calls back one merged, never-throw entry point:
+ * Fetches current conditions — plus an hourly window around now and today's
+ * high/low, for the widget's expanded view — for a user-typed location
+ * string (e.g. "Boston"). Two Open-Meteo calls back one merged, never-throw
+ * entry point:
  *
  *   1. Geocoding  (place name -> coordinates + display name + timezone)
- *   2. Forecast   (coordinates -> current temperature/condition)
+ *   2. Forecast   (coordinates -> current/hourly/daily conditions, all in
+ *                  one request via Open-Meteo's `past_hours`/`forecast_hours`
+ *                  params, which centre the hourly series on right now)
  *
  * Open-Meteo needs no API key and allows direct browser calls (CORS-enabled),
  * which is why it was chosen for this — there's no backend to proxy a keyed
@@ -84,6 +88,23 @@ export function getWeatherCondition(weatherCode) {
 /** @param {number} celsius */
 export function celsiusToFahrenheit(celsius) {
   return (celsius * 9) / 5 + 32;
+}
+
+/**
+ * Formats an Open-Meteo hourly timestamp (e.g. "2024-05-01T14:00", already
+ * in the *location's* timezone since that's what we ask for) as "2 PM".
+ *
+ * Deliberately doesn't go through `Date`: a timezone-less ISO string like
+ * this is parsed as local time IN THE BROWSER, which is very often a
+ * different timezone than the weather location itself — "14:00 in Boston"
+ * would silently become "14:00 in Tokyo" if converted through a `Date`. The
+ * hour is already correct as written, so this just reads it off the string.
+ * @param {string} isoTime
+ */
+export function formatHourLabel(isoTime) {
+  const hour = Number(isoTime.slice(11, 13));
+  const displayHour = hour % 12 === 0 ? 12 : hour % 12;
+  return `${displayHour} ${hour < 12 ? 'AM' : 'PM'}`;
 }
 
 function isFresh(entry, ttlMs) {
@@ -169,12 +190,50 @@ async function resolveLocation(query, signal) {
   }
 }
 
+/**
+ * Splits an hourly series around `currentTime` into up to 6 hours each side.
+ * String comparison (rather than `Date`) is safe and deliberate here too —
+ * see `formatHourLabel`'s comment on why these timestamps are never parsed
+ * through `Date` — and works because Open-Meteo's ISO timestamps are fixed-
+ * width, so lexical order matches chronological order.
+ * @param {{time: string[], temperature_2m: number[], weather_code: number[]}} hourly
+ * @param {string} currentTime
+ */
+function splitHourly(hourly, currentTime) {
+  if (!hourly?.time) return { past: [], next: [] };
+
+  const entries = hourly.time.map((time, index) => ({
+    time,
+    temperatureC: hourly.temperature_2m[index],
+    weatherCode: hourly.weather_code[index],
+  }));
+
+  return {
+    past: entries.filter((entry) => entry.time < currentTime).slice(-6),
+    next: entries.filter((entry) => entry.time > currentTime).slice(0, 6),
+  };
+}
+
+/** @param {{temperature_2m_max: number[], temperature_2m_min: number[], weather_code: number[]}} [daily] */
+function summariseDaily(daily) {
+  if (!daily?.temperature_2m_max?.length) return null;
+  return { maxC: daily.temperature_2m_max[0], minC: daily.temperature_2m_min[0], weatherCode: daily.weather_code[0] };
+}
+
 async function fetchForecast(location, signal) {
   const params = new URLSearchParams({
     latitude: String(location.latitude),
     longitude: String(location.longitude),
     timezone: location.timezone,
     current: 'temperature_2m,weather_code,is_day',
+    // `past_hours`/`forecast_hours` centre the hourly series on right now,
+    // so one request covers both the "past 6 hours" and "next 6 hours"
+    // views the widget's expanded state shows.
+    hourly: 'temperature_2m,weather_code',
+    past_hours: '6',
+    forecast_hours: '6',
+    daily: 'temperature_2m_max,temperature_2m_min,weather_code',
+    forecast_days: '1',
   });
   const response = await fetch(`${FORECAST_ENDPOINT}?${params}`, { signal: requestSignal(signal) });
   if (!response.ok) throw new Error(`Forecast responded ${response.status} ${response.statusText}`);
@@ -187,6 +246,8 @@ async function fetchForecast(location, signal) {
     temperatureC: current.temperature_2m,
     weatherCode: current.weather_code,
     isDay: current.is_day === 1,
+    hourly: splitHourly(data.hourly, current.time),
+    daily: summariseDaily(data.daily),
   };
 }
 
@@ -232,7 +293,17 @@ async function resolveForecast(location, signal) {
  *
  * @param {string} locationQuery
  * @param {{ signal?: AbortSignal }} [options]
- * @returns {Promise<{ locationName: string, temperatureC: number, weatherCode: number, isDay: boolean } | null>}
+ * @returns {Promise<{
+ *   locationName: string,
+ *   temperatureC: number,
+ *   weatherCode: number,
+ *   isDay: boolean,
+ *   hourly: {
+ *     past: { time: string, temperatureC: number, weatherCode: number }[],
+ *     next: { time: string, temperatureC: number, weatherCode: number }[],
+ *   },
+ *   daily: { maxC: number, minC: number, weatherCode: number } | null,
+ * } | null>}
  */
 export async function getCurrentWeather(locationQuery, { signal } = {}) {
   const trimmed = (locationQuery ?? '').trim();
