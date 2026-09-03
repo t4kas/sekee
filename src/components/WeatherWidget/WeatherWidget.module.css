@@ -149,10 +149,7 @@
   align-items: baseline;
   justify-content: space-between;
   gap: var(--space-3);
-
   padding-top: var(--space-3);
-  border-top: 1px solid var(--border);
-
   font-size: var(--text-sm);
 }
 
@@ -186,11 +183,16 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
+  gap: var(--space-1);
 
   padding: var(--space-2) var(--space-1);
+  border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   background: var(--surface-hover);
+}
+
+.hourlyIcon {
+  color: var(--fg-primary);
 }
 
 .hourlyTime {

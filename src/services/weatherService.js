@@ -45,9 +45,10 @@ const FORECAST_TTL_MS = 15 * 60 * 1000; // 15 minutes
 const TIMEOUT_MS = 5000;
 
 /** WMO weather codes Open-Meteo returns, bucketed into the small icon set
- *  `WeatherWidget/weatherIcons.jsx` draws. Not every code needs a distinct
- *  icon — day/night variants are deliberately collapsed into one bucket to
- *  keep this an "at a glance" widget, not a full weather app. */
+ *  `WeatherWidget/weatherIcons.jsx` draws. Not every bucket needs a distinct
+ *  night variant — a cloud, rain, or snowfall icon reads the same regardless
+ *  of the hour — only "clear" and "cloudy" would otherwise show a sun at
+ *  3 AM, so `getWeatherCondition` swaps just those two to a moon below. */
 const CONDITIONS_BY_CODE = {
   0: { label: 'Clear sky', icon: 'clear' },
   1: { label: 'Mainly clear', icon: 'clear' },
@@ -79,10 +80,21 @@ const CONDITIONS_BY_CODE = {
   99: { label: 'Thunderstorm with hail', icon: 'thunderstorm' },
 };
 
-/** @param {number} weatherCode a WMO weather code from the forecast API
- *  @returns {{ label: string, icon: string }} */
-export function getWeatherCondition(weatherCode) {
-  return CONDITIONS_BY_CODE[weatherCode] ?? { label: 'Unknown', icon: 'cloudy' };
+/** Icon buckets with a distinct night variant — see the comment above. */
+const NIGHT_SWAPPABLE_ICONS = new Set(['clear', 'cloudy']);
+
+/**
+ * @param {number} weatherCode a WMO weather code from the forecast API
+ * @param {boolean} [isDay] defaults to `true` so every existing call site
+ *   (which predates this parameter) keeps showing the daytime icon
+ * @returns {{ label: string, icon: string }}
+ */
+export function getWeatherCondition(weatherCode, isDay = true) {
+  const condition = CONDITIONS_BY_CODE[weatherCode] ?? { label: 'Unknown', icon: 'cloudy' };
+  if (!isDay && NIGHT_SWAPPABLE_ICONS.has(condition.icon)) {
+    return { ...condition, icon: `${condition.icon}-night` };
+  }
+  return condition;
 }
 
 /** @param {number} celsius */
@@ -196,7 +208,7 @@ async function resolveLocation(query, signal) {
  * see `formatHourLabel`'s comment on why these timestamps are never parsed
  * through `Date` — and works because Open-Meteo's ISO timestamps are fixed-
  * width, so lexical order matches chronological order.
- * @param {{time: string[], temperature_2m: number[], weather_code: number[]}} hourly
+ * @param {{time: string[], temperature_2m: number[], weather_code: number[], is_day: number[]}} hourly
  * @param {string} currentTime
  */
 function splitHourly(hourly, currentTime) {
@@ -206,6 +218,7 @@ function splitHourly(hourly, currentTime) {
     time,
     temperatureC: hourly.temperature_2m[index],
     weatherCode: hourly.weather_code[index],
+    isDay: hourly.is_day[index] === 1,
   }));
 
   return {
@@ -229,7 +242,7 @@ async function fetchForecast(location, signal) {
     // `past_hours`/`forecast_hours` centre the hourly series on right now,
     // so one request covers both the "past 6 hours" and "next 6 hours"
     // views the widget's expanded state shows.
-    hourly: 'temperature_2m,weather_code',
+    hourly: 'temperature_2m,weather_code,is_day',
     past_hours: '6',
     forecast_hours: '6',
     daily: 'temperature_2m_max,temperature_2m_min,weather_code',
@@ -299,8 +312,8 @@ async function resolveForecast(location, signal) {
  *   weatherCode: number,
  *   isDay: boolean,
  *   hourly: {
- *     past: { time: string, temperatureC: number, weatherCode: number }[],
- *     next: { time: string, temperatureC: number, weatherCode: number }[],
+ *     past: { time: string, temperatureC: number, weatherCode: number, isDay: boolean }[],
+ *     next: { time: string, temperatureC: number, weatherCode: number, isDay: boolean }[],
  *   },
  *   daily: { maxC: number, minC: number, weatherCode: number } | null,
  * } | null>}

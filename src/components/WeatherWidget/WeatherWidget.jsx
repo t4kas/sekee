@@ -51,7 +51,7 @@ export function WeatherWidget({ location, units }) {
     );
   }
 
-  const condition = getWeatherCondition(weather.weatherCode);
+  const condition = getWeatherCondition(weather.weatherCode, weather.isDay);
   const Icon = WEATHER_ICONS[condition.icon];
   const toDisplay = (celsius) =>
     Math.round(units === 'fahrenheit' ? celsiusToFahrenheit(celsius) : celsius);
@@ -109,19 +109,19 @@ export function WeatherWidget({ location, units }) {
 }
 
 /** One row of the expanded card: a label plus up to 6 hour chips.
- *  @param {{ label: string, entries: {time: string, temperatureC: number, weatherCode: number}[], toDisplay: (c: number) => number }} props */
+ *  @param {{ label: string, entries: {time: string, temperatureC: number, weatherCode: number, isDay: boolean}[], toDisplay: (c: number) => number }} props */
 function HourlyRow({ label, entries, toDisplay }) {
   return (
     <div className={styles.hourlySection}>
       <span className={styles.hourlyLabel}>{label}</span>
       <div className={styles.hourlyList}>
         {entries.map((entry) => {
-          const condition = getWeatherCondition(entry.weatherCode);
+          const condition = getWeatherCondition(entry.weatherCode, entry.isDay);
           const HourIcon = WEATHER_ICONS[condition.icon];
           return (
             <div key={entry.time} className={styles.hourlyItem}>
               <span className={styles.hourlyTime}>{formatHourLabel(entry.time)}</span>
-              <HourIcon size={16} />
+              <HourIcon size={20} className={styles.hourlyIcon} />
               <span className={styles.hourlyTemp}>{toDisplay(entry.temperatureC)}°</span>
             </div>
           );
