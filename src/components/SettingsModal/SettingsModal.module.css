@@ -205,31 +205,42 @@
 
 /* --- Sub-tabs (e.g. Personalisation's Background/Favorites) ---------------- */
 
-/* A small pill-shaped segmented control, distinct from the sidebar's
-   `.tabButton` list so a sub-tab bar never reads as another sidebar. */
+/* An actual tab strip — underlined, not a filled pill/segmented control —
+   so it reads as "more tabs, one level down" rather than a toggle. */
 .subTabList {
-  display: inline-flex;
-  gap: 2px;
-
-  padding: 2px;
-  border-radius: var(--radius-pill);
-  background: var(--surface);
-  width: fit-content;
+  display: flex;
+  gap: var(--space-4);
+  border-bottom: 1px solid var(--border);
 }
 
 .subTabButton {
-  padding: var(--space-1) var(--space-3);
+  position: relative;
+
+  padding: var(--space-2) 0;
   border: none;
-  border-radius: var(--radius-pill);
 
   font-size: var(--text-sm);
   color: var(--fg-secondary);
   background: transparent;
   cursor: pointer;
 
-  transition:
-    background var(--duration-fast) var(--ease),
-    color var(--duration-fast) var(--ease);
+  transition: color var(--duration-fast) var(--ease);
+}
+
+/* The active indicator. Positioned to sit right on top of `.subTabList`'s
+   own border below, rather than adding a second line beneath it. */
+.subTabButton::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  bottom: -1px;
+  left: 0;
+
+  height: 2px;
+  border-radius: var(--radius-pill);
+  background: transparent;
+
+  transition: background var(--duration-fast) var(--ease);
 }
 
 .subTabButton[data-hovered] {
@@ -243,7 +254,10 @@
 
 .subTabButton[data-selected] {
   color: var(--fg-primary);
-  background: var(--surface-active);
+}
+
+.subTabButton[data-selected]::after {
+  background: var(--accent);
 }
 
 @media (max-width: 560px) {
