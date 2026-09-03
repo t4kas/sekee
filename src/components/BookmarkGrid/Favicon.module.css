@@ -1,0 +1,25 @@
+/* Both the real icon and the letter fallback occupy the same box, so a
+   failed load doesn't shift the tile's layout. */
+.icon,
+.fallback {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  flex-shrink: 0;
+}
+
+.icon {
+  object-fit: contain;
+  /* Many favicons are pure white on transparent and vanish against the
+     glass tile; a faint plate behind them keeps every icon visible. */
+  background: rgba(255, 255, 255, 0.1);
+  padding: 2px;
+}
+
+.fallback {
+  display: grid;
+  place-items: center;
+  font-size: var(--text-md);
+  font-weight: 600;
+  color: #fff;
+}

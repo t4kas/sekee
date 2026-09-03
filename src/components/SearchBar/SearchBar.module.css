@@ -1,0 +1,77 @@
+.wrapper {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+}
+
+/* The glass pill holding the icon and the input. */
+.field {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex: 1;
+  min-width: 0; /* lets the input shrink instead of overflowing the flex row */
+
+  padding: var(--space-3) var(--space-5);
+
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+
+  background: var(--surface);
+  backdrop-filter: var(--blur);
+  box-shadow: var(--shadow-md);
+
+  transition:
+    background var(--duration-med) var(--ease),
+    border-color var(--duration-med) var(--ease),
+    box-shadow var(--duration-med) var(--ease);
+}
+
+.field:hover {
+  background: var(--surface-hover);
+}
+
+/* React Aria puts `data-focus-within` on the SearchField while any child
+   holds focus, which is exactly when we want to light up the pill. */
+.field[data-focus-within] {
+  background: var(--surface-hover);
+  border-color: var(--border-strong);
+  box-shadow:
+    var(--shadow-md),
+    0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
+.field svg {
+  flex-shrink: 0;
+  color: var(--fg-muted);
+}
+
+.input {
+  flex: 1;
+  min-width: 0;
+
+  border: none;
+  background: none;
+  outline: none;
+
+  font-size: var(--text-lg);
+  color: var(--fg-primary);
+}
+
+.input::placeholder {
+  color: var(--fg-muted);
+}
+
+/* WebKit draws its own clear button on type="search"; we don't use it. */
+.input::-webkit-search-cancel-button {
+  display: none;
+}
+
+@media (max-width: 560px) {
+  /* Not enough room for a separate button — the on-screen keyboard's
+     "Go" key and Enter both still submit. */
+  .wrapper > button {
+    display: none;
+  }
+}

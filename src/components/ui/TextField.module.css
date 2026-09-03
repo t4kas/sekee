@@ -1,0 +1,54 @@
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.label {
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--fg-secondary);
+}
+
+.input {
+  width: 100%;
+  padding: var(--space-3);
+
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+
+  font-size: var(--text-md);
+  color: var(--fg-primary);
+
+  background: rgba(0, 0, 0, 0.25);
+
+  transition:
+    border-color var(--duration-fast) var(--ease),
+    box-shadow var(--duration-fast) var(--ease);
+}
+
+.input::placeholder {
+  color: var(--fg-muted);
+}
+
+/* Text inputs always show a ring on focus, keyboard or not — unlike buttons,
+   you need to see where you're typing. */
+.input[data-focused] {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent);
+}
+
+.input[data-invalid] {
+  border-color: var(--danger);
+}
+
+.description {
+  font-size: var(--text-xs);
+  color: var(--fg-muted);
+}
+
+.error {
+  font-size: var(--text-xs);
+  color: var(--danger);
+}

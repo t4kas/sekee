@@ -1,0 +1,40 @@
+/* Fixed rather than absolute, so the photo stays put if the bookmark grid
+   ever grows tall enough to scroll. */
+.background {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+}
+
+.image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+
+  /* Remounting the <img> (via its key) replays this fade. */
+  animation: fade-in var(--duration-slow) var(--ease) both;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    /* A barely-there zoom makes the arrival feel deliberate. */
+    transform: scale(1.03);
+  }
+}
+
+/* Darkens the top and bottom edges so overlaid UI stays readable no matter
+   how bright the photo is. */
+.scrim {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(
+      to bottom,
+      rgba(0, 0, 0, 0.45) 0%,
+      rgba(0, 0, 0, 0.18) 28%,
+      rgba(0, 0, 0, 0.28) 68%,
+      rgba(0, 0, 0, 0.62) 100%
+    );
+}

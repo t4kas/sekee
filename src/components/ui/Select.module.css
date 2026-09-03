@@ -1,0 +1,120 @@
+.select {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.label {
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--fg-secondary);
+}
+
+.trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  width: 100%;
+
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+
+  font-size: var(--text-md);
+  text-align: left;
+  color: var(--fg-primary);
+
+  background: var(--surface);
+  cursor: pointer;
+
+  transition:
+    background var(--duration-fast) var(--ease),
+    border-color var(--duration-fast) var(--ease);
+}
+
+.trigger[data-hovered] {
+  background: var(--surface-hover);
+  border-color: var(--border-strong);
+}
+
+.trigger[data-focus-visible] {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+/* React Aria flips this to `true` when the dropdown is open — handy for
+   rotating the chevron. */
+.trigger[data-pressed] svg,
+.trigger[aria-expanded='true'] svg {
+  transform: rotate(180deg);
+}
+
+.trigger svg {
+  flex-shrink: 0;
+  color: var(--fg-muted);
+  transition: transform var(--duration-fast) var(--ease);
+}
+
+.value {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The floating list. React Aria sets `--trigger-width` on the popover so it
+   can match the width of the button that opened it. */
+.popover {
+  width: var(--trigger-width);
+  padding: var(--space-1);
+
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+
+  background: var(--surface-solid);
+  backdrop-filter: var(--blur);
+  box-shadow: var(--shadow-lg);
+
+  /* React Aria adds data-entering/data-exiting around the open transition. */
+  transform-origin: top center;
+}
+
+.popover[data-entering] {
+  animation: popover-in var(--duration-fast) var(--ease);
+}
+
+@keyframes popover-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+}
+
+.listbox {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 260px;
+  overflow-y: auto;
+  outline: none;
+}
+
+.option {
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-md);
+  cursor: pointer;
+  outline: none;
+}
+
+/* `data-focused` follows the keyboard cursor as well as the mouse, so
+   arrow-key navigation highlights the same way hovering does. */
+.option[data-focused],
+.option[data-hovered] {
+  background: var(--surface-hover);
+}
+
+.option[data-selected] {
+  color: var(--accent);
+  font-weight: 600;
+}

@@ -1,0 +1,86 @@
+/* ===========================================================================
+   Global styles
+   ---------------------------------------------------------------------------
+   Deliberately tiny: a reset, page-level defaults, and the shared focus ring.
+   Everything else is scoped to a component via a `*.module.css` file.
+   =========================================================================== */
+
+@import './tokens.css';
+
+/* --- Reset ---------------------------------------------------------------- */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--text-md);
+  color: var(--fg-primary);
+
+  /* A dark base colour so the page never flashes white before the photo
+     loads, and so the fallback still looks intentional. */
+  background-color: #14161c;
+
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* React Aria renders real <button>/<input> elements; strip UA styling once
+   here so individual components don't each have to. */
+button,
+input,
+textarea,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+/* --- Focus ---------------------------------------------------------------- */
+
+/* React Aria adds `data-focus-visible` to a component only when focus came
+   from the keyboard, so a mouse click never draws a ring but Tab always
+   does. Components opt in with `.thing[data-focus-visible]`. */
+:root {
+  --focus-ring: 0 0 0 2px var(--accent-contrast), 0 0 0 4px var(--accent);
+}
+
+/* Fallback for plain elements (our own <a>s, anything not from React Aria). */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* React Aria stamps `data-rac` on every element it renders, and those style
+   their own focus state via the data attributes above. Without this, the
+   fallback outline lands on top of them — it has the same specificity as a
+   component's own `.thing { outline: none }` rule and this file loads last,
+   so it would win and draw a hard rectangle inside e.g. the search pill. */
+[data-rac]:focus-visible {
+  outline: none;
+}
+
+/* --- Utilities ------------------------------------------------------------ */
+
+/* Visible to screen readers, invisible on screen. Used for labels we want
+   announced but not drawn (e.g. the search field's label). */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}

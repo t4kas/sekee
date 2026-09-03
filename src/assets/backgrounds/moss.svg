@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1200" viewBox="0 0 1920 1200">
+  <defs>
+    <radialGradient id="g0"><stop offset="0%" stop-color="#1f4d32" stop-opacity="0.95"/><stop offset="100%" stop-color="#1f4d32" stop-opacity="0"/></radialGradient>
+    <radialGradient id="g1"><stop offset="0%" stop-color="#3f7d46" stop-opacity="0.95"/><stop offset="100%" stop-color="#3f7d46" stop-opacity="0"/></radialGradient>
+    <radialGradient id="g2"><stop offset="0%" stop-color="#8fbf6b" stop-opacity="0.95"/><stop offset="100%" stop-color="#8fbf6b" stop-opacity="0"/></radialGradient>
+    <radialGradient id="g3"><stop offset="0%" stop-color="#132a1c" stop-opacity="0.95"/><stop offset="100%" stop-color="#132a1c" stop-opacity="0"/></radialGradient>
+    <filter id="soften" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="90"/>
+    </filter>
+  </defs>
+  <rect width="1920" height="1200" fill="#0d1a12"/>
+  <g filter="url(#soften)">
+    <circle cx="1605" cy="676" r="1016" fill="url(#g0)"/>
+    <circle cx="115" cy="577" r="686" fill="url(#g0)"/>
+    <circle cx="343" cy="717" r="868" fill="url(#g1)"/>
+    <circle cx="1128" cy="530" r="613" fill="url(#g1)"/>
+    <circle cx="613" cy="794" r="600" fill="url(#g2)"/>
+    <circle cx="14" cy="1163" r="1063" fill="url(#g2)"/>
+    <circle cx="632" cy="312" r="797" fill="url(#g3)"/>
+    <circle cx="1759" cy="4" r="988" fill="url(#g3)"/>
+  </g>
+  <rect width="1920" height="1200" fill="#000" opacity="0.12"/>
+</svg>

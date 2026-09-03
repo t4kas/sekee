@@ -1,0 +1,95 @@
+/* Base button — every variant builds on this. */
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+
+  font-size: var(--text-md);
+  font-weight: 500;
+  color: var(--fg-primary);
+  white-space: nowrap;
+
+  background: var(--surface);
+  cursor: pointer;
+
+  transition:
+    background var(--duration-fast) var(--ease),
+    border-color var(--duration-fast) var(--ease),
+    transform var(--duration-fast) var(--ease);
+}
+
+/* React Aria's state attributes, rather than :hover / :active, so that
+   touch and keyboard interactions behave consistently. */
+.button[data-hovered] {
+  background: var(--surface-hover);
+  border-color: var(--border-strong);
+}
+
+.button[data-pressed] {
+  background: var(--surface-active);
+  transform: scale(0.97);
+}
+
+/* Only drawn when focus arrived via the keyboard. */
+.button[data-focus-visible] {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.button[data-disabled] {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* --- Variants ------------------------------------------------------------- */
+
+.primary {
+  background: var(--accent);
+  border-color: transparent;
+  color: var(--accent-contrast);
+  font-weight: 600;
+}
+
+.primary[data-hovered] {
+  background: color-mix(in srgb, var(--accent) 88%, white);
+  border-color: transparent;
+}
+
+.primary[data-pressed] {
+  background: color-mix(in srgb, var(--accent) 80%, black);
+}
+
+/* Borderless — for secondary actions like "Cancel". */
+.ghost {
+  background: transparent;
+  border-color: transparent;
+  color: var(--fg-secondary);
+}
+
+.ghost[data-hovered] {
+  background: var(--surface);
+  color: var(--fg-primary);
+}
+
+/* Square, icon-only. Always pair with an `aria-label`. */
+.icon {
+  padding: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-sm);
+}
+
+.danger {
+  color: var(--danger);
+  border-color: color-mix(in srgb, var(--danger) 40%, transparent);
+}
+
+.danger[data-hovered] {
+  background: color-mix(in srgb, var(--danger) 18%, transparent);
+  border-color: var(--danger);
+}

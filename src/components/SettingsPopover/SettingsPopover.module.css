@@ -1,0 +1,86 @@
+.trigger {
+  display: grid;
+  place-items: center;
+
+  width: 38px;
+  height: 38px;
+  padding: 0;
+
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+
+  color: var(--fg-secondary);
+  background: var(--surface);
+  backdrop-filter: var(--blur);
+  cursor: pointer;
+
+  transition:
+    background var(--duration-fast) var(--ease),
+    color var(--duration-fast) var(--ease),
+    transform var(--duration-med) var(--ease);
+}
+
+.trigger[data-hovered] {
+  background: var(--surface-hover);
+  color: var(--fg-primary);
+  /* A slow quarter-turn — a small bit of delight on an otherwise plain icon. */
+  transform: rotate(45deg);
+}
+
+.trigger[data-focus-visible] {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.popover {
+  width: 260px;
+
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+
+  background: var(--surface-solid);
+  backdrop-filter: var(--blur);
+  box-shadow: var(--shadow-lg);
+}
+
+.popover[data-entering] {
+  animation: popover-in var(--duration-med) var(--ease);
+}
+
+.popover[data-exiting] {
+  animation: popover-in var(--duration-fast) var(--ease) reverse;
+}
+
+@keyframes popover-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.97);
+  }
+}
+
+.dialog {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+
+  padding: var(--space-4);
+  outline: none;
+}
+
+.newPhoto {
+  width: 100%;
+}
+
+.hint {
+  margin: 0;
+  font-size: var(--text-xs);
+  line-height: 1.5;
+  color: var(--fg-muted);
+}
+
+.hint code {
+  padding: 1px 4px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.12);
+  font-size: 0.95em;
+}

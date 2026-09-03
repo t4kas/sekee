@@ -1,0 +1,6 @@
+.message {
+  margin: 0 0 var(--space-5);
+  font-size: var(--text-md);
+  line-height: 1.5;
+  color: var(--fg-secondary);
+}

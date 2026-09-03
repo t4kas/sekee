@@ -1,0 +1,46 @@
+/* Sits above the fixed Background (z-index 0). */
+.app {
+  position: relative;
+  z-index: 1;
+
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  padding: var(--space-5);
+}
+
+.header {
+  display: flex;
+  justify-content: flex-end;
+  flex-shrink: 0;
+}
+
+/* The centred column. Pushed slightly above true centre — content sitting
+   dead-centre reads as low, because we scan from the top. */
+.content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-7);
+
+  width: 100%;
+  max-width: var(--content-width);
+  margin: 0 auto;
+  padding-bottom: var(--space-8);
+
+  /* Auto margins centre the column vertically in the remaining space; the
+     padding-bottom above then pushes the visible content a little above true
+     centre, which reads better than dead-centre. */
+  margin-top: auto;
+  margin-bottom: auto;
+}
+
+@media (max-width: 560px) {
+  .app {
+    padding: var(--space-4);
+  }
+
+  .content {
+    gap: var(--space-5);
+  }
+}
