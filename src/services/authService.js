@@ -29,7 +29,21 @@ function assertConfigured() {
  */
 export async function signUp({ email, password }) {
   assertConfigured();
-  const { data, error } = await supabase.auth.signUp({ email, password });
+
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+    // Without this, Supabase falls back to the project's dashboard-wide
+    // "Site URL" setting (which defaults to localhost:3000) for the link in
+    // the confirmation email — wrong for every visitor except whoever set
+    // up the project. Using the origin actually being signed up from
+    // instead makes the confirmation link correct on localhost during dev,
+    // on the production domain, and on any preview URL, with nothing to
+    // keep in sync in the dashboard. It still needs to be added to
+    // Authentication -> URL Configuration -> Redirect URLs in the Supabase
+    // dashboard (see README.md), or Supabase rejects it as untrusted.
+    options: { emailRedirectTo: window.location.origin },
+  });
   if (error) throw error;
 
   // Supabase returns a user with no session when email confirmation is
