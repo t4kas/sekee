@@ -13,7 +13,17 @@
   display: grid;
   grid-template-rows: auto 0fr;
 
-  border-radius: var(--radius-lg);
+  /* Matches `.bar`'s own rendered corner radius — not literally
+     `--radius-pill` (999px). `.bar` is 50px tall, so its "pill" is really a
+     999px radius auto-clamped down to 25px (half its height); pairing that
+     literal 999 with `[data-open]`'s smaller bottom corners below would make
+     the browser's corner-overflow correction scale *all four* corners
+     together (per spec, one shared factor for the whole box), warping the
+     top into a bulge instead of the clean curve `.bar` has. Using the
+     already-clamped 25px value everywhere sidesteps that entirely, and
+     because it's what 999px was rendering as anyway, nothing changes when
+     the frame is closed. */
+  border-radius: 25px;
   border: 1px solid transparent;
   background: transparent;
   box-shadow: none;
@@ -26,6 +36,7 @@
     border-color var(--duration-med) var(--ease),
     box-shadow var(--duration-med) var(--ease),
     transform var(--duration-med) var(--ease),
+    border-radius var(--duration-med) var(--ease),
     grid-template-rows var(--duration-med) var(--ease);
 }
 
@@ -42,6 +53,11 @@
 
 .frame[data-open] {
   grid-template-rows: auto 1fr;
+  /* Top stays at `.bar`'s own radius so the seam between pill and frame is
+     invisible; the bottom relaxes to the app's standard large radius, since
+     a 25px curve on a much taller box would read as barely-rounded corners
+     rather than a deliberate shape. */
+  border-radius: 25px 25px var(--radius-lg) var(--radius-lg);
 }
 
 /* The glass pill. It wraps the logo, the SearchField and the submit button,

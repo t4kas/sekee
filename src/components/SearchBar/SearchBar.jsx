@@ -43,16 +43,25 @@ export function SearchBar({ engineId }) {
   const [displayValue, setDisplayValue] = useState('');
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const [isOpen, setIsOpen] = useState(false);
+  // Bumped once per *actual* batch of suggestions (see the effect below),
+  // not once per keystroke. Options are keyed on this rather than on
+  // `typedQuery` so the blur-in animation replays exactly when the list's
+  // content changes — a run of backspaces during the debounce window, where
+  // the fetched suggestions haven't changed yet, reuses the same elements
+  // instead of tearing them down and snapping a fresh animation onto them.
+  const [suggestionsVersion, setSuggestionsVersion] = useState(0);
 
   const engine = getEngine(engineId);
   const suggestions = useSearchSuggestions(engineId, typedQuery);
   const listboxId = useId();
 
   // A fresh batch of suggestions opens the dropdown (or closes it, if the
-  // batch is empty) and drops any highlight left over from the last batch.
+  // batch is empty), drops any highlight left over from the last batch, and
+  // advances the animation version.
   useEffect(() => {
     setIsOpen(suggestions.length > 0);
     setHighlightedIndex(-1);
+    setSuggestionsVersion((version) => version + 1);
   }, [suggestions]);
 
   /** Sends a query to the chosen engine, replacing this page. */
@@ -183,11 +192,11 @@ export function SearchBar({ engineId }) {
             <ul className={styles.suggestions} id={listboxId} role="listbox">
               {suggestions.map((suggestion, index) => (
                 <li
-                  // Keyed on the query too, so every keystroke remounts the
-                  // options instead of just patching their text — that's what
-                  // makes the blur-in animation below replay on each
-                  // keystroke rather than only on the dropdown's first open.
-                  key={`${typedQuery}::${suggestion}`}
+                  // Keyed on the batch version, so a new fetched batch
+                  // remounts the options (replaying the blur-in animation)
+                  // but a keystroke that hasn't produced new suggestions yet
+                  // — e.g. mid-debounce backspaces — doesn't.
+                  key={`${suggestionsVersion}::${suggestion}`}
                   id={`${listboxId}-option-${index}`}
                   role="option"
                   aria-selected={index === highlightedIndex}
