@@ -1,0 +1,57 @@
+/* Mirrors PhotoCredit's bottom-left placement, on the opposite corner. */
+.button {
+  position: absolute;
+  right: var(--space-5);
+  bottom: var(--space-4);
+  z-index: 1;
+
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+
+  border: 1px solid var(--border);
+  border-radius: 50%;
+
+  color: var(--fg-secondary);
+  background: var(--surface);
+  backdrop-filter: var(--blur);
+  cursor: pointer;
+
+  transition:
+    background var(--duration-fast) var(--ease),
+    border-color var(--duration-fast) var(--ease),
+    color var(--duration-fast) var(--ease);
+}
+
+.button[data-hovered] {
+  background: var(--surface-hover);
+  border-color: var(--border-strong);
+  color: var(--fg-primary);
+}
+
+.button[data-pressed] {
+  transform: scale(0.94);
+}
+
+.button[data-focus-visible] {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+/* Favorited: filled heart drawn in the accent colour, not just currentColor,
+   so "you've favorited this" reads at a glance rather than blending into
+   the same muted tone every other icon button uses. */
+.button[aria-pressed='true'] {
+  color: var(--accent);
+}
+
+@media (max-width: 560px) {
+  /* PhotoCredit's own @media rule expands it to full width on narrow
+     screens (see PhotoCredit.module.css); move up to clear that row rather
+     than overlapping it. */
+  .button {
+    bottom: calc(var(--space-4) + 28px);
+  }
+}

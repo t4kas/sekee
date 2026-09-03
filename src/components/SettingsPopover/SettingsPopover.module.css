@@ -125,7 +125,9 @@
   outline: none;
 }
 
-.newPhoto {
+/* Shared by "New photo" and "Manage favorites" — both are full-width
+   secondary actions in the panel. */
+.fullWidthButton {
   width: 100%;
 }
 

@@ -1,10 +1,18 @@
 /**
  * AuthDialog
  * ---------------------------------------------------------------------------
- * The sign-in / sign-up modal, opened from `AccountControl`. One component
- * serves both jobs — `mode` toggles which copy and which `useAuth` action is
- * used — the same "one component, two modes" shape `BookmarkDialog` uses for
- * add vs. edit.
+ * The sign-in / sign-up modal. One component serves both jobs — `mode`
+ * toggles which copy and which action is used — the same "one component,
+ * two modes" shape `BookmarkDialog` uses for add vs. edit.
+ *
+ * Rendered once, at the top of `App.jsx`, alongside `BookmarkDialog`/
+ * `ConfirmDialog` — not owned by `AccountControl`, because it now has two
+ * unrelated trigger points (the account button, and favoriting a photo
+ * while signed out). `App.jsx` owns the single `useAuth()` call for the
+ * whole app and passes `signIn`/`signUp` down as props, rather than this
+ * dialog calling `useAuth()` itself — see `useAuth.js`'s header comment for
+ * why a second call site used to cause double session loads and racing
+ * migrations.
  *
  * Reuses `BookmarkDialog.module.css` for the overlay/modal/dialog/heading/
  * form/footer chrome rather than redefining it, the same way `ConfirmDialog`
@@ -15,7 +23,6 @@ import { useEffect, useState } from 'react';
 import { Button as AriaButton, Dialog, Form, Heading, Modal, ModalOverlay } from 'react-aria-components';
 import { Button } from '../ui/Button.jsx';
 import { TextField } from '../ui/TextField.jsx';
-import { useAuth } from '../../hooks/useAuth.js';
 import dialogStyles from '../BookmarkDialog/BookmarkDialog.module.css';
 import styles from './AuthDialog.module.css';
 
@@ -23,10 +30,10 @@ import styles from './AuthDialog.module.css';
  * @param {object} props
  * @param {boolean} props.isOpen
  * @param {() => void} props.onClose
+ * @param {(credentials: {email: string, password: string}) => Promise<object>} props.signIn
+ * @param {(credentials: {email: string, password: string}) => Promise<{needsEmailConfirmation: boolean}>} props.signUp
  */
-export function AuthDialog({ isOpen, onClose }) {
-  const { signIn, signUp } = useAuth();
-
+export function AuthDialog({ isOpen, onClose, signIn, signUp }) {
   const [mode, setMode] = useState('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');

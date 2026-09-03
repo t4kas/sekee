@@ -14,6 +14,11 @@ import { DEFAULT_CATEGORY_ID } from './backgroundCategories.js';
 export const DEFAULT_SETTINGS = {
   engineId: DEFAULT_ENGINE_ID,
   categoryId: DEFAULT_CATEGORY_ID,
+  // `categoryId: 'favorites'` is a sentinel handled by `useBackground.js`,
+  // not a real entry in `backgroundCategories.js` — these two fields are
+  // only meaningful when it's selected. See `useBackground.js`.
+  favoritesMode: 'shuffle', // 'shuffle' | 'fixed'
+  pinnedFavoriteId: null, // which favorite to always show when 'fixed'
 };
 
 /**
