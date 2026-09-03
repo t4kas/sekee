@@ -113,6 +113,12 @@ export const HeartIcon = ({ filled, ...props }) => (
   </Svg>
 );
 
+export const BookmarkIcon = (props) => (
+  <Svg {...props}>
+    <path d="M6 3.5h12a1 1 0 0 1 1 1V21l-7-4.5L5 21V4.5a1 1 0 0 1 1-1Z" />
+  </Svg>
+);
+
 export const CloseIcon = (props) => (
   <Svg {...props}>
     <path d="M6 6l12 12M18 6L6 18" />

@@ -19,7 +19,7 @@
 import { useState } from 'react';
 import { Button as AriaButton, Disclosure, DisclosurePanel, Heading } from 'react-aria-components';
 import { Button } from '../ui/Button.jsx';
-import { ChevronDownIcon, CloudIcon, RefreshIcon } from '../ui/icons.jsx';
+import { BookmarkIcon, ChevronDownIcon, CloudIcon, HeartIcon, RefreshIcon, SlidersIcon } from '../ui/icons.jsx';
 import styles from './SettingsModal.module.css';
 
 /**
@@ -55,11 +55,6 @@ export function SyncTab({ user, refreshBookmarks, refreshSettings }) {
         {user ? 'Synced to your account.' : 'Stored on this device only.'}
       </p>
 
-      <p className={styles.hint}>
-        Sync is refresh-based, not live: a bookmark or setting changed on another device shows up
-        here the next time you sync or reload, not instantly.
-      </p>
-
       {user && (
         <Button className={styles.fullWidthButton} onPress={handleSyncNow} isDisabled={isSyncing}>
           <RefreshIcon size={16} />
@@ -81,15 +76,20 @@ export function SyncTab({ user, refreshBookmarks, refreshSettings }) {
             Signed in, these are read from and written to your account instead of just this
             device:
           </p>
-          <ul className={styles.cardList}>
-            <li>Bookmarks</li>
-            <li>Settings — search engine, background choice, weather location and units</li>
-            <li>Favorited photos</li>
-          </ul>
-          <p>
-            The Unsplash photo pool (the cached images themselves, not your settings) stays local
-            to each device — it's a cache, not something worth carrying between them.
-          </p>
+          <div className={styles.cardItemList}>
+            <p className={styles.cardItem}>
+              <BookmarkIcon size={16} />
+              Bookmarks
+            </p>
+            <p className={styles.cardItem}>
+              <SlidersIcon size={16} />
+              Settings — search engine, background choice, weather location and units
+            </p>
+            <p className={styles.cardItem}>
+              <HeartIcon size={16} />
+              Favorited photos
+            </p>
+          </div>
         </DisclosurePanel>
       </Disclosure>
     </div>
