@@ -1,7 +1,15 @@
-/* Sits above the fixed Background (z-index 0). */
+/* Sits above the fixed Background (z-index 0) — but only *visually*.
+   `pointer-events: none` here, with it turned back on for `.header`/
+   `.content` below, means this full-viewport box doesn't swallow clicks
+   over the empty space around it. Without this, `.app`'s box (which really
+   does cover the whole screen, `min-height: 100%` and all) sits above
+   `Background`'s entire stacking context and blocks everything in it —
+   `PhotoCredit`'s links, `FavoriteButton` — everywhere neither `.header`
+   nor `.content` actually reaches. */
 .app {
   position: relative;
   z-index: 1;
+  pointer-events: none;
 
   display: flex;
   flex-direction: column;
@@ -10,6 +18,8 @@
 }
 
 .header {
+  pointer-events: auto;
+
   display: flex;
   align-items: center;
   justify-content: flex-end;
@@ -20,6 +30,8 @@
 /* The centred column. Pushed slightly above true centre — content sitting
    dead-centre reads as low, because we scan from the top. */
 .content {
+  pointer-events: auto;
+
   display: flex;
   flex-direction: column;
   align-items: center;

@@ -9,18 +9,15 @@
  * One avatar-shaped trigger, two different things behind it depending on
  * whether anyone's signed in:
  *
- *   Signed out: pressing it opens `AuthDialog` — there's nothing to show a
- *   menu of yet, so it's a plain button with its own `isOpen` state, same as
- *   `BookmarkGrid`'s "add" tile opening `BookmarkDialog`.
+ *   Signed out: pressing it calls `onRequestSignIn` — the actual dialog is
+ *   rendered once, at the top of `App.jsx`, since favoriting a background
+ *   photo while signed out needs to open that same dialog from a completely
+ *   different part of the tree. See `useAuth.js`'s header comment for why
+ *   this component doesn't call `useAuth()` itself.
  *
  *   Signed in: pressing it opens a `MenuTrigger` dropdown (email + sign out).
- *   These are two different `AriaButton`s sharing the `styles.avatar` look,
- *   not one button whose behaviour is conditional — that's what lets each
- *   just use the React Aria piece built for what it does, rather than one
- *   component juggling both a dialog's and a menu's open state at once.
  */
 
-import { useState } from 'react';
 import {
   Button as AriaButton,
   Header,
@@ -32,8 +29,6 @@ import {
 } from 'react-aria-components';
 import { UserIcon } from '../ui/icons.jsx';
 import { isSupabaseConfigured } from '../../services/supabaseClient.js';
-import { useAuth } from '../../hooks/useAuth.js';
-import { AuthDialog } from './AuthDialog.jsx';
 import styles from './AccountControl.module.css';
 
 /** The letter shown in the avatar for a signed-in user. */
@@ -41,10 +36,13 @@ function initialFor(email) {
   return email?.charAt(0).toUpperCase() || '?';
 }
 
-export function AccountControl() {
-  const { user, signOut } = useAuth();
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-
+/**
+ * @param {object} props
+ * @param {object|null} props.user
+ * @param {() => Promise<void>} props.signOut
+ * @param {() => void} props.onRequestSignIn  opens the shared AuthDialog
+ */
+export function AccountControl({ user, signOut, onRequestSignIn }) {
   if (!isSupabaseConfigured) return null;
 
   if (user) {
@@ -73,12 +71,8 @@ export function AccountControl() {
   }
 
   return (
-    <>
-      <AriaButton className={styles.avatar} aria-label="Sign in" onPress={() => setIsDialogOpen(true)}>
-        <UserIcon size={18} />
-      </AriaButton>
-
-      <AuthDialog isOpen={isDialogOpen} onClose={() => setIsDialogOpen(false)} />
-    </>
+    <AriaButton className={styles.avatar} aria-label="Sign in" onPress={onRequestSignIn}>
+      <UserIcon size={18} />
+    </AriaButton>
   );
 }

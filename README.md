@@ -128,6 +128,14 @@ you don't have any synced yet) — nothing is ever deleted locally, so this
 can't lose data. Sync is refresh-based, not live: a bookmark added on one
 device shows up elsewhere the next time the app loads there, not instantly.
 
+**Favoriting a background photo requires an account — there's no local
+version of it.** Click the heart on a photo to save it (signed out, it opens
+the sign-in dialog instead). Once you've favorited a few, "My Favorites"
+appears in the Background dropdown alongside the photo categories, either
+shuffling among them or, if you switch to "Always show one," pinned to
+whichever one you pick in "Manage favorites" (also where you remove any).
+Favorites are stored the same way as bookmarks/settings — no separate table.
+
 ---
 
 ## How the code is organised
@@ -146,6 +154,7 @@ src/
 │   ├── supabaseClient.js        the Supabase client + `isSupabaseConfigured`
 │   ├── supabaseAdapter.js       the signed-in storage adapter
 │   ├── authService.js           sign up / in / out, wraps Supabase auth
+│   ├── favoritesService.js      favorited photos — cloud-only, no local mode
 │   ├── favicons.js              builds favicon image URLs
 │   ├── searchEngines.js         the list of search engines
 │   └── backgroundCategories.js  the list of photo categories
@@ -154,17 +163,19 @@ src/
 │   ├── useBookmarks.js
 │   ├── useSettings.js
 │   ├── useBackground.js
-│   └── useAuth.js               also points `storage` at the right adapter
+│   ├── useAuth.js               also points `storage` at the right adapter
+│   └── useFavorites.js
 │
 ├── components/
 │   ├── ui/                  small styled wrappers around React Aria
 │   │   ├── Button.jsx  Select.jsx  TextField.jsx  icons.jsx
-│   ├── Background/          full-bleed photo + photographer credit
+│   ├── Background/          full-bleed photo + credit + favorite button
 │   ├── SearchBar/
 │   ├── BookmarkGrid/        the tile grid + favicon handling
 │   ├── BookmarkDialog/      add/edit form + delete confirmation
 │   ├── SettingsPopover/
-│   └── Account/              sign-in button + auth dialog
+│   ├── Account/              sign-in button + auth dialog
+│   └── Favorites/            the "manage favorites" gallery
 │
 └── styles/
     ├── tokens.css           every colour, size and timing, as CSS variables

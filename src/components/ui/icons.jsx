@@ -9,8 +9,10 @@
  * — so every icon is `aria-hidden`.
  */
 
-/** Shared props: 1.75px strokes on a 24px grid, rounded caps. */
-function Svg({ children, size = 18 }) {
+/** Shared props: 1.75px strokes on a 24px grid, rounded caps. `...rest` lets
+ *  a call site override things like `fill` (see `HeartIcon`'s filled state)
+ *  without every other icon needing to pass anything beyond `size`. */
+function Svg({ children, size = 18, ...rest }) {
   return (
     <svg
       width={size}
@@ -23,6 +25,7 @@ function Svg({ children, size = 18 }) {
       strokeLinejoin="round"
       aria-hidden="true"
       focusable="false"
+      {...rest}
     >
       {children}
     </svg>
@@ -100,5 +103,12 @@ export const LogOutIcon = (props) => (
     <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
     <path d="M16 17l5-5-5-5" />
     <path d="M21 12H9" />
+  </Svg>
+);
+
+/** @param {{filled?: boolean}} props */
+export const HeartIcon = ({ filled, ...props }) => (
+  <Svg {...props} {...(filled ? { fill: 'currentColor' } : {})}>
+    <path d="M12 20.5s-7.5-4.6-9.8-9.1C.7 8 2.1 4.6 5.4 3.8c2-.5 4 .3 5.1 2 .3.5.6 1 .8 1.5.2-.5.5-1 .8-1.5 1.1-1.7 3.1-2.5 5.1-2 3.3.8 4.7 4.2 3.2 7.6-2.3 4.5-9.8 9.1-9.8 9.1z" />
   </Svg>
 );

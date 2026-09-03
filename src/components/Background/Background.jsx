@@ -16,13 +16,19 @@
  */
 
 import { PhotoCredit } from './PhotoCredit.jsx';
+import { FavoriteButton } from './FavoriteButton.jsx';
 import styles from './Background.module.css';
 
 /**
  * @param {object} props
  * @param {Photo|null} props.photo  null while the first photo is loading
+ * @param {object|null} props.user
+ * @param {Photo[]} props.favorites
+ * @param {(photo: Photo) => void} props.addFavorite
+ * @param {(photoId: string) => void} props.removeFavorite
+ * @param {() => void} props.onRequestSignIn
  */
-export function Background({ photo }) {
+export function Background({ photo, user, favorites, addFavorite, removeFavorite, onRequestSignIn }) {
   return (
     <div
       className={styles.background}
@@ -45,6 +51,16 @@ export function Background({ photo }) {
       <div className={styles.scrim} />
 
       {photo && <PhotoCredit photo={photo} />}
+      {photo && (
+        <FavoriteButton
+          photo={photo}
+          user={user}
+          favorites={favorites}
+          addFavorite={addFavorite}
+          removeFavorite={removeFavorite}
+          onRequestSignIn={onRequestSignIn}
+        />
+      )}
     </div>
   );
 }

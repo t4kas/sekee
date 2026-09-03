@@ -70,8 +70,9 @@ const FALLBACK_PHOTOS = [
   { id: 'fallback-moss', imageUrl: mossFallback, color: '#0d1a12', altText: 'Deep green gradient' },
 ];
 
-/** Picks a random element. Used both for the fallbacks and the photo pool. */
-function pickRandom(items) {
+/** Picks a random element. Used both for the fallbacks and the photo pool
+ *  here, and by `useBackground.js` to pick among favorited photos. */
+export function pickRandom(items) {
   return items[Math.floor(Math.random() * items.length)];
 }
 

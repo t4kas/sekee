@@ -16,6 +16,15 @@
  *
  * Both only need to happen once per sign-in transition, not on every render
  * or token refresh, so `syncedUserId` guards against re-running them.
+ *
+ * CALL THIS ONCE, IN `App.jsx`, AND PASS THE RESULT DOWN AS PROPS. Every
+ * call to this hook runs its own session load, its own `onAuthStateChange`
+ * subscription, and — worse — its own independent migration attempt on
+ * sign-in (each instance's `syncedUserId` guard starts fresh). Early on,
+ * `AccountControl` and `AuthDialog` each called it separately, which meant
+ * two of everything above running concurrently, every time. Components that
+ * need auth state now receive `user`/`signOut`/`signIn`/`signUp` as props
+ * from `App.jsx` instead of calling this hook themselves.
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';

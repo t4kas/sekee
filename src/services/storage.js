@@ -146,4 +146,5 @@ export const StorageKeys = {
   bookmarks: 'bookmarks',
   settings: 'settings',
   photoCache: 'photo-cache',
+  favorites: 'favorites',
 };
