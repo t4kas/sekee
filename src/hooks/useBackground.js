@@ -106,11 +106,28 @@ export function useBackground(settings, favorites) {
     return () => {
       isMounted = false;
     };
-    // `favorites` (the array itself, not just its length) is a real
-    // dependency: unfavoriting the pinned photo must re-trigger picking a
-    // fallback, and `useFavorites` already hands back a new array on every
-    // mutation, so this can't loop on an unrelated re-render.
-  }, [settings.categoryId, settings.favoritesMode, settings.pinnedFavoriteId, favorites, refreshCount]);
+    // Deliberately NOT depending on `favorites` here — see the effect below
+    // for why. This one only re-picks on an actual settings change or an
+    // explicit "New photo".
+  }, [settings.categoryId, settings.favoritesMode, settings.pinnedFavoriteId, refreshCount]);
+
+  // If the photo currently on screen falls out of `favorites` — unfavorited
+  // from the gallery, possibly the pinned one — replace it. This is the
+  // ONLY reason `useBackground` should react to `favorites` changing at
+  // all: adding a favorite (including the one already on screen) or
+  // removing some other one shouldn't disturb what's currently shown, which
+  // is exactly what happened when `favorites` sat in the effect above's own
+  // dependency list — any mutation re-ran `resolvePhoto` from scratch and
+  // could land on a different photo than the one just favorited.
+  useEffect(() => {
+    if (settings.categoryId !== 'favorites') return;
+    if (!photo) return;
+    if (favorites.some((favorite) => favorite.id === photo.id)) return;
+
+    // Reuses the "New photo" trigger rather than duplicating the picking
+    // logic above.
+    setRefreshCount((count) => count + 1);
+  }, [favorites, settings.categoryId, photo]);
 
   const refresh = useCallback(() => setRefreshCount((count) => count + 1), []);
 
