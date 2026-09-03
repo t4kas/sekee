@@ -1,7 +1,63 @@
-/* Positions the autofill dropdown relative to the pill below it. */
 .wrap {
-  position: relative;
   width: 100%;
+}
+
+/* The focus frame. Sits around `.bar` and, once suggestions are open, around
+   the dropdown too — `padding` (not `.bar`'s own size) is what "hugs" the
+   pair, so it grows outward from the pill rather than the pill growing.
+   `grid-template-rows` is the classic CSS-only accordion: the second track
+   (the suggestions row) animates between 0fr and 1fr without ever knowing
+   the list's real height, so no ResizeObserver is needed. */
+.frame {
+  position: relative;
+  display: grid;
+  grid-template-rows: auto 0fr;
+
+  /* Matches `.bar`'s own rendered corner radius — not literally
+     `--radius-pill` (999px). `.bar` is 50px tall, so its "pill" is really a
+     999px radius auto-clamped down to 25px (half its height); pairing that
+     literal 999 with `[data-open]`'s smaller bottom corners below would make
+     the browser's corner-overflow correction scale *all four* corners
+     together (per spec, one shared factor for the whole box), warping the
+     top into a bulge instead of the clean curve `.bar` has. Using the
+     already-clamped 25px value everywhere sidesteps that entirely, and
+     because it's what 999px was rendering as anyway, nothing changes when
+     the frame is closed. */
+  border-radius: 25px;
+  border: 1px solid transparent;
+  background: transparent;
+  box-shadow: none;
+  padding: 0;
+  transform: translateY(0);
+
+  transition:
+    padding var(--duration-med) var(--ease),
+    background var(--duration-med) var(--ease),
+    border-color var(--duration-med) var(--ease),
+    box-shadow var(--duration-med) var(--ease),
+    transform var(--duration-med) var(--ease),
+    border-radius var(--duration-med) var(--ease),
+    grid-template-rows var(--duration-med) var(--ease);
+}
+
+/* Faint, translucent box — deliberately lighter than `.bar`'s own surface so
+   it reads as a halo around the control rather than a second pill. Lifting
+   it a few pixels (`translateY`) is the "pushed up" part of the brief. */
+.frame:focus-within {
+  padding: var(--space-2);
+  background: color-mix(in srgb, var(--surface) 45%, transparent);
+  border-color: color-mix(in srgb, var(--border-strong) 55%, transparent);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-3px);
+}
+
+.frame[data-open] {
+  grid-template-rows: auto 1fr;
+  /* Top stays at `.bar`'s own radius so the seam between pill and frame is
+     invisible; the bottom relaxes to the app's standard large radius, since
+     a 25px curve on a much taller box would read as barely-rounded corners
+     rather than a deliberate shape. */
+  border-radius: 25px 25px var(--radius-lg) var(--radius-lg);
 }
 
 /* The glass pill. It wraps the logo, the SearchField and the submit button,
@@ -144,18 +200,22 @@
 
 /* --- Autofill dropdown ------------------------------------------------ */
 
-.suggestions {
-  position: absolute;
-  top: calc(100% + var(--space-2));
-  left: 0;
-  right: 0;
-  z-index: 1;
+/* The frame's second grid row. Always rendered (even with an empty list)
+   so `.frame`'s 0fr -> 1fr transition has a track to animate; `overflow:
+   hidden` clips the list out of view while collapsed instead of it
+   reflowing into view unclipped. */
+.suggestionsRow {
+  overflow: hidden;
+  min-height: 0;
+}
 
+.suggestions {
   display: flex;
   flex-direction: column;
   gap: 2px;
   margin: 0;
   padding: var(--space-1);
+  margin-top: var(--space-2);
   list-style: none;
 
   border: 1px solid var(--border);
@@ -164,6 +224,23 @@
   background: var(--surface-solid);
   backdrop-filter: var(--blur);
   box-shadow: var(--shadow-lg);
+
+  /* The list is always mounted (see SearchBar.jsx) so this can fade and
+     blur it away on close instead of it popping straight to empty the
+     instant the field is cleared — the counterpart to `.suggestion`'s
+     entrance below, and what makes emptying the field read as one smooth
+     motion back to the starting state rather than content vanishing before
+     `.frame`'s collapse even finishes. */
+  opacity: 1;
+  filter: blur(0);
+  transition:
+    opacity var(--duration-med) var(--ease),
+    filter var(--duration-med) var(--ease);
+}
+
+.frame:not([data-open]) .suggestions {
+  opacity: 0;
+  filter: blur(10px);
 }
 
 .suggestion {
@@ -178,10 +255,124 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+
+  /* Blurs and fades each option in as it appears. Suggestions are keyed on
+     their own text (see SearchBar.jsx), so a word carried over from the
+     previous batch keeps its element and skips straight to its new
+     position instead of replaying this — only genuinely new suggestions
+     mount fresh and blur in, which is what keeps consecutive batches
+     reading as one smooth update instead of the whole list cutting away.
+     The eased-overshoot curve (rather than the app's standard `--ease`)
+     gives the settle a touch more life to match a bigger, softer blur. */
+  animation: suggestion-blur-in 380ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes suggestion-blur-in {
+  from {
+    opacity: 0;
+    filter: blur(10px);
+    transform: translateY(-4px) scale(0.98);
+  }
+  60% {
+    filter: blur(0);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+    transform: translateY(0) scale(1);
+  }
 }
 
 /* Keyboard highlight and mouse hover use the same treatment, since
    `highlight()` drives both from the same state. */
 .suggestion[data-highlighted] {
   background: var(--surface-hover);
+}
+
+/* The part of a suggestion the user actually typed — bold marks it as the
+   "confirmed" prefix, leaving the suggested completion after it in the
+   regular weight. */
+.suggestionMatch {
+  font-weight: 700;
+}
+
+/* --- Link preview card -------------------------------------------------- */
+
+/* A URL-shaped suggestion (`LinkSuggestion` in SearchBar.jsx) needs up to
+   three lines — title, description, hostname — so the plain row's
+   single-line ellipsis truncation has to give way to this row specifically. */
+.suggestion[data-variant='link'] {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: unset;
+}
+
+.linkCard {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+
+.linkFavicon,
+.linkFaviconFallback {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  margin-top: 2px; /* optically centres the icon against the title's cap-height */
+  border-radius: var(--radius-sm);
+}
+
+.linkFavicon {
+  object-fit: contain;
+  /* Many favicons are pure white on transparent and vanish against the
+     dark dropdown; a faint plate behind them keeps every icon visible. */
+  background: rgba(255, 255, 255, 0.1);
+  padding: 2px;
+}
+
+.linkFaviconFallback {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--border);
+}
+
+.linkText {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0; /* lets the ellipsised lines below shrink instead of overflowing */
+}
+
+.linkTitle {
+  font-size: var(--text-md);
+  font-weight: 600;
+  color: var(--fg-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.linkDescription {
+  font-size: var(--text-sm);
+  color: var(--fg-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.linkUrl {
+  font-size: var(--text-xs);
+  color: var(--fg-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .suggestion {
+    animation: none;
+  }
+
+  .suggestions {
+    transition: none;
+  }
 }
