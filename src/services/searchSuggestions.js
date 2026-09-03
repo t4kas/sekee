@@ -26,6 +26,10 @@ const SUGGEST_ENDPOINT = 'https://suggestqueries.google.com/complete/search';
  *  a slow/broken script load would otherwise never resolve or reject. */
 const TIMEOUT_MS = 4000;
 
+/** Google's endpoint doesn't take a count param, so trim its response
+ *  ourselves — a dropdown longer than this crowds the bookmarks below it. */
+const MAX_SUGGESTIONS = 6;
+
 let callbackSequence = 0;
 
 /**
@@ -97,7 +101,8 @@ export async function fetchSuggestions(engineId, query, { signal } = {}) {
   try {
     // Response shape: [query, [suggestion, ...], [...], {...}]
     const data = await jsonpRequest(`${SUGGEST_ENDPOINT}?${params}`, { signal });
-    return Array.isArray(data?.[1]) ? data[1].filter((item) => typeof item === 'string') : [];
+    if (!Array.isArray(data?.[1])) return [];
+    return data[1].filter((item) => typeof item === 'string').slice(0, MAX_SUGGESTIONS);
   } catch (error) {
     if (error.name === 'AbortError') throw error;
     console.warn('[searchSuggestions] falling back to no suggestions:', error.message);
