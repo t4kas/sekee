@@ -18,6 +18,7 @@ import { BookmarkGrid } from './components/BookmarkGrid/BookmarkGrid.jsx';
 import { BookmarkDialog } from './components/BookmarkDialog/BookmarkDialog.jsx';
 import { ConfirmDialog } from './components/BookmarkDialog/ConfirmDialog.jsx';
 import { SettingsPopover } from './components/SettingsPopover/SettingsPopover.jsx';
+import { AccountControl } from './components/Account/AccountControl.jsx';
 import { useBookmarks } from './hooks/useBookmarks.js';
 import { useSettings } from './hooks/useSettings.js';
 import { useBackground } from './hooks/useBackground.js';
@@ -60,6 +61,7 @@ export default function App() {
 
       <div className={styles.app}>
         <header className={styles.header}>
+          <AccountControl />
           <SettingsPopover
             settings={settings}
             onSettingsChange={updateSettings}

@@ -1,0 +1,83 @@
+/* Same 36px round icon button as SettingsPopover's trigger — the app's
+   icon-only header buttons should all match. */
+.trigger {
+  display: grid;
+  place-items: center;
+
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  flex-shrink: 0;
+
+  border: 1px solid var(--border);
+  border-radius: 50%;
+
+  color: var(--fg-secondary);
+  background: var(--surface);
+  backdrop-filter: var(--blur);
+  cursor: pointer;
+
+  transition:
+    background var(--duration-fast) var(--ease),
+    border-color var(--duration-fast) var(--ease),
+    color var(--duration-fast) var(--ease);
+}
+
+.trigger[data-hovered] {
+  background: var(--surface-hover);
+  border-color: var(--border-strong);
+  color: var(--fg-primary);
+}
+
+.trigger[data-pressed] {
+  background: var(--surface-active);
+  transform: scale(0.94);
+}
+
+.trigger[data-focus-visible] {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.tooltip {
+  padding: var(--space-1) var(--space-3);
+
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+
+  font-size: var(--text-xs);
+  color: var(--fg-primary);
+
+  background: var(--surface-solid);
+  backdrop-filter: var(--blur);
+  box-shadow: var(--shadow-md);
+}
+
+.tooltip[data-entering] {
+  animation: tooltip-in var(--duration-fast) var(--ease);
+}
+
+@keyframes tooltip-in {
+  from {
+    opacity: 0;
+    transform: translateY(-3px);
+  }
+}
+
+/* --- Signed-in state -------------------------------------------------- */
+
+.signedIn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.email {
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+
+  font-size: var(--text-sm);
+  color: var(--fg-secondary);
+}
