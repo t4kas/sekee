@@ -206,7 +206,15 @@ export function SearchBar({ engineId }) {
                   // Stops the input from ever losing focus to this click, so
                   // there's no blur race with `onClick` selecting the suggestion.
                   onMouseDown={(event) => event.preventDefault()}
-                  onMouseEnter={() => highlight(index)}
+                  // `onMouseMove` rather than `onMouseEnter`: a row that
+                  // appears directly under an already-still cursor (typing
+                  // doesn't move the mouse) can end up "entered" the instant
+                  // it renders, silently overwriting what's typed with a
+                  // suggestion before the user has touched the mouse at all.
+                  // `mousemove` only ever fires from genuine pointer motion,
+                  // so hovering can't hijack the field until the user
+                  // actually moves the mouse over the dropdown.
+                  onMouseMove={() => highlight(index)}
                   onClick={() => selectSuggestion(suggestion)}
                 >
                   {suggestion}
