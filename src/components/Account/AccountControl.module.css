@@ -1,6 +1,8 @@
-/* Same 36px round icon button as SettingsPopover's trigger — the app's
-   icon-only header buttons should all match. */
-.trigger {
+/* Same 36px circle every icon-only header button uses (SettingsPopover's
+   trigger, the search bar's submit button) — signed out, this is a glass
+   button with the outline user icon; signed in, `background`/`color` below
+   flip it to a solid accent-filled avatar showing an initial instead. */
+.avatar {
   display: grid;
   place-items: center;
 
@@ -12,6 +14,8 @@
   border: 1px solid var(--border);
   border-radius: 50%;
 
+  font-size: var(--text-sm);
+  font-weight: 600;
   color: var(--fg-secondary);
   background: var(--surface);
   backdrop-filter: var(--blur);
@@ -23,61 +27,109 @@
     color var(--duration-fast) var(--ease);
 }
 
-.trigger[data-hovered] {
+.avatar[data-hovered] {
   background: var(--surface-hover);
   border-color: var(--border-strong);
   color: var(--fg-primary);
 }
 
-.trigger[data-pressed] {
-  background: var(--surface-active);
+.avatar[data-pressed] {
   transform: scale(0.94);
 }
 
-.trigger[data-focus-visible] {
+.avatar[data-focus-visible] {
   outline: none;
   box-shadow: var(--focus-ring);
 }
 
-.tooltip {
-  padding: var(--space-1) var(--space-3);
+/* Signed in: a letter avatar, filled with the accent colour rather than
+   glass, so it reads as "this is you" instead of just another icon button. */
+.avatar[aria-expanded] {
+  border-color: transparent;
+  color: var(--accent-contrast);
+  background: var(--accent);
+}
+
+.avatar[aria-expanded][data-hovered] {
+  background: color-mix(in srgb, var(--accent) 88%, white);
+}
+
+.avatar[aria-expanded][data-pressed] {
+  background: color-mix(in srgb, var(--accent) 80%, black);
+}
+
+/* --- Menu --------------------------------------------------------------- */
+
+.popover {
+  width: 220px;
 
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-
-  font-size: var(--text-xs);
-  color: var(--fg-primary);
+  border-radius: var(--radius-md);
 
   background: var(--surface-solid);
   backdrop-filter: var(--blur);
-  box-shadow: var(--shadow-md);
+  box-shadow: var(--shadow-lg);
 }
 
-.tooltip[data-entering] {
-  animation: tooltip-in var(--duration-fast) var(--ease);
+.popover[data-entering] {
+  animation: popover-in var(--duration-fast) var(--ease);
 }
 
-@keyframes tooltip-in {
+@keyframes popover-in {
   from {
     opacity: 0;
-    transform: translateY(-3px);
+    transform: translateY(-4px) scale(0.98);
   }
 }
 
-/* --- Signed-in state -------------------------------------------------- */
-
-.signedIn {
+.menu {
   display: flex;
-  align-items: center;
-  gap: var(--space-2);
+  flex-direction: column;
+  padding: var(--space-1);
+  outline: none;
 }
 
-.email {
-  max-width: 180px;
+.menuHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-2) var(--space-3) var(--space-1);
+}
+
+.menuHeaderLabel {
+  font-size: var(--text-xs);
+  color: var(--fg-muted);
+}
+
+.menuHeaderEmail {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 
   font-size: var(--text-sm);
-  color: var(--fg-secondary);
+  color: var(--fg-primary);
+}
+
+.separator {
+  height: 1px;
+  margin: var(--space-1) 0;
+  background: var(--border);
+}
+
+.menuItem {
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+
+  font-size: var(--text-md);
+  color: var(--fg-primary);
+  cursor: pointer;
+  outline: none;
+}
+
+/* `data-focused` follows the keyboard cursor as well as the mouse, so
+   arrow-key navigation highlights the same way hovering does — same
+   convention as Select's options. */
+.menuItem[data-focused],
+.menuItem[data-hovered] {
+  background: var(--surface-hover);
 }

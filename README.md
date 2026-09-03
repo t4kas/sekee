@@ -105,6 +105,14 @@ browser or device.
    ```
 
 5. Restart the dev server. A sign-in button now appears in the header.
+6. Under **Authentication → URL Configuration**, add every URL you'll sign up
+   from to **Redirect URLs** — `http://localhost:5173` for local dev, plus
+   whatever your app is deployed at (e.g. `https://your-app.vercel.app`).
+   The app already tells Supabase which origin to send the confirmation link
+   back to (see `emailRedirectTo` in `authService.js`), but Supabase still
+   rejects any origin that isn't on this list — without it, sign-up email
+   links fall back to the project's default **Site URL**, which is
+   `localhost:3000` and almost certainly not where your app lives.
 
 By default, Supabase requires confirming a sign-up by email before you can
 sign in — fine for real use, but slow while developing. To skip it locally,
