@@ -1,7 +1,47 @@
-/* Positions the autofill dropdown relative to the pill below it. */
 .wrap {
-  position: relative;
   width: 100%;
+}
+
+/* The focus frame. Sits around `.bar` and, once suggestions are open, around
+   the dropdown too — `padding` (not `.bar`'s own size) is what "hugs" the
+   pair, so it grows outward from the pill rather than the pill growing.
+   `grid-template-rows` is the classic CSS-only accordion: the second track
+   (the suggestions row) animates between 0fr and 1fr without ever knowing
+   the list's real height, so no ResizeObserver is needed. */
+.frame {
+  position: relative;
+  display: grid;
+  grid-template-rows: auto 0fr;
+
+  border-radius: var(--radius-lg);
+  border: 1px solid transparent;
+  background: transparent;
+  box-shadow: none;
+  padding: 0;
+  transform: translateY(0);
+
+  transition:
+    padding var(--duration-med) var(--ease),
+    background var(--duration-med) var(--ease),
+    border-color var(--duration-med) var(--ease),
+    box-shadow var(--duration-med) var(--ease),
+    transform var(--duration-med) var(--ease),
+    grid-template-rows var(--duration-med) var(--ease);
+}
+
+/* Faint, translucent box — deliberately lighter than `.bar`'s own surface so
+   it reads as a halo around the control rather than a second pill. Lifting
+   it a few pixels (`translateY`) is the "pushed up" part of the brief. */
+.frame:focus-within {
+  padding: var(--space-2);
+  background: color-mix(in srgb, var(--surface) 45%, transparent);
+  border-color: color-mix(in srgb, var(--border-strong) 55%, transparent);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-3px);
+}
+
+.frame[data-open] {
+  grid-template-rows: auto 1fr;
 }
 
 /* The glass pill. It wraps the logo, the SearchField and the submit button,
@@ -144,18 +184,22 @@
 
 /* --- Autofill dropdown ------------------------------------------------ */
 
-.suggestions {
-  position: absolute;
-  top: calc(100% + var(--space-2));
-  left: 0;
-  right: 0;
-  z-index: 1;
+/* The frame's second grid row. Always rendered (even with an empty list)
+   so `.frame`'s 0fr -> 1fr transition has a track to animate; `overflow:
+   hidden` clips the list out of view while collapsed instead of it
+   reflowing into view unclipped. */
+.suggestionsRow {
+  overflow: hidden;
+  min-height: 0;
+}
 
+.suggestions {
   display: flex;
   flex-direction: column;
   gap: 2px;
   margin: 0;
   padding: var(--space-1);
+  margin-top: var(--space-2);
   list-style: none;
 
   border: 1px solid var(--border);
@@ -178,10 +222,35 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+
+  /* Blurs and fades each option in as it appears. Re-keying the `<li>` on
+     every keystroke (see SearchBar.jsx) remounts them, so this replays on
+     each new batch of suggestions rather than just on the dropdown's first
+     open — that's the "blur in ... as the user is typing" effect. */
+  animation: suggestion-blur-in var(--duration-med) var(--ease) both;
+}
+
+@keyframes suggestion-blur-in {
+  from {
+    opacity: 0;
+    filter: blur(6px);
+    transform: translateY(-2px);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+    transform: translateY(0);
+  }
 }
 
 /* Keyboard highlight and mouse hover use the same treatment, since
    `highlight()` drives both from the same state. */
 .suggestion[data-highlighted] {
   background: var(--surface-hover);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .suggestion {
+    animation: none;
+  }
 }

@@ -116,79 +116,97 @@ export function SearchBar({ engineId }) {
 
   return (
     <div className={styles.wrap}>
-      <div className={styles.bar}>
-        <span className={styles.logo}>
-          <EngineLogo engine={engine} size={18} />
-        </span>
+      {/* Faint focus frame around the pill and, once it grows to include the
+          dropdown row below, around the suggestions too. Sizing comes from
+          normal layout (no JS measurement) — `data-open` just switches the
+          suggestions row's grid track between 0fr and 1fr, which animates
+          smoothly without knowing the list's height up front. */}
+      <div className={styles.frame} data-open={isOpen || undefined}>
+        <div className={styles.bar}>
+          <span className={styles.logo}>
+            <EngineLogo engine={engine} size={18} />
+          </span>
 
-        <SearchField
-          className={styles.field}
-          value={displayValue}
-          onChange={handleChange}
-          onSubmit={submitSearch}
-        >
-          {/* Announced to screen readers, invisible on screen — the logo and
-              placeholder already make the purpose obvious visually. */}
-          <Label className="visually-hidden">Search the web</Label>
+          <SearchField
+            className={styles.field}
+            value={displayValue}
+            onChange={handleChange}
+            onSubmit={submitSearch}
+          >
+            {/* Announced to screen readers, invisible on screen — the logo and
+                placeholder already make the purpose obvious visually. */}
+            <Label className="visually-hidden">Search the web</Label>
 
-          <Input
-            className={styles.input}
-            placeholder={`Search with ${engine.name}`}
-            /* Focused on load so you can start typing the moment a tab opens
-               — the whole point of a new-tab page. */
-            autoFocus
-            /* Browsers try to be helpful with search inputs; for a homepage
-               these all get in the way. */
-            autoComplete="off"
-            autoCorrect="off"
-            autoCapitalize="off"
-            spellCheck="false"
-            onKeyDownCapture={handleInputKeyDownCapture}
-            onBlur={() => setIsOpen(false)}
-            role="combobox"
-            aria-autocomplete="list"
-            aria-expanded={isOpen}
-            aria-controls={listboxId}
-            aria-activedescendant={
-              highlightedIndex >= 0 ? `${listboxId}-option-${highlightedIndex}` : undefined
-            }
-          />
-        </SearchField>
+            <Input
+              className={styles.input}
+              placeholder={`Search with ${engine.name}`}
+              /* Focused on load so you can start typing the moment a tab opens
+                 — the whole point of a new-tab page. */
+              autoFocus
+              /* Browsers try to be helpful with search inputs; for a homepage
+                 these all get in the way. */
+              autoComplete="off"
+              autoCorrect="off"
+              autoCapitalize="off"
+              spellCheck="false"
+              onKeyDownCapture={handleInputKeyDownCapture}
+              onBlur={() => setIsOpen(false)}
+              role="combobox"
+              aria-autocomplete="list"
+              aria-expanded={isOpen}
+              aria-controls={listboxId}
+              aria-activedescendant={
+                highlightedIndex >= 0 ? `${listboxId}-option-${highlightedIndex}` : undefined
+              }
+            />
+          </SearchField>
 
-        {/* React Aria's own Button rather than our styled wrapper, so this
-            file owns the styling outright — mixing the two would leave two
-            equal-specificity rules fighting over the size and shape. */}
-        <Button
-          className={styles.submit}
-          onPress={() => submitSearch(displayValue)}
-          isDisabled={!displayValue.trim()}
-          aria-label={`Search with ${engine.name}`}
-        >
-          <SearchIcon size={19} />
-        </Button>
+          {/* React Aria's own Button rather than our styled wrapper, so this
+              file owns the styling outright — mixing the two would leave two
+              equal-specificity rules fighting over the size and shape. */}
+          <Button
+            className={styles.submit}
+            onPress={() => submitSearch(displayValue)}
+            isDisabled={!displayValue.trim()}
+            aria-label={`Search with ${engine.name}`}
+          >
+            <SearchIcon size={19} />
+          </Button>
+        </div>
+
+        {/* Always present so the frame's second grid track can animate
+            between 0fr and 1fr — unmounting this wrapper along with the list
+            would skip straight to the collapsed state instead of easing
+            there. */}
+        <div className={styles.suggestionsRow}>
+          {isOpen && (
+            <ul className={styles.suggestions} id={listboxId} role="listbox">
+              {suggestions.map((suggestion, index) => (
+                <li
+                  // Keyed on the query too, so every keystroke remounts the
+                  // options instead of just patching their text — that's what
+                  // makes the blur-in animation below replay on each
+                  // keystroke rather than only on the dropdown's first open.
+                  key={`${typedQuery}::${suggestion}`}
+                  id={`${listboxId}-option-${index}`}
+                  role="option"
+                  aria-selected={index === highlightedIndex}
+                  className={styles.suggestion}
+                  style={{ animationDelay: `${index * 20}ms` }}
+                  data-highlighted={index === highlightedIndex || undefined}
+                  // Stops the input from ever losing focus to this click, so
+                  // there's no blur race with `onClick` selecting the suggestion.
+                  onMouseDown={(event) => event.preventDefault()}
+                  onMouseEnter={() => highlight(index)}
+                  onClick={() => selectSuggestion(suggestion)}
+                >
+                  {suggestion}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       </div>
-
-      {isOpen && (
-        <ul className={styles.suggestions} id={listboxId} role="listbox">
-          {suggestions.map((suggestion, index) => (
-            <li
-              key={suggestion}
-              id={`${listboxId}-option-${index}`}
-              role="option"
-              aria-selected={index === highlightedIndex}
-              className={styles.suggestion}
-              data-highlighted={index === highlightedIndex || undefined}
-              // Stops the input from ever losing focus to this click, so
-              // there's no blur race with `onClick` selecting the suggestion.
-              onMouseDown={(event) => event.preventDefault()}
-              onMouseEnter={() => highlight(index)}
-              onClick={() => selectSuggestion(suggestion)}
-            >
-              {suggestion}
-            </li>
-          ))}
-        </ul>
-      )}
     </div>
   );
 }
