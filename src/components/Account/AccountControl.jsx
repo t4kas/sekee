@@ -1,7 +1,9 @@
 /**
  * AccountControl
  * ---------------------------------------------------------------------------
- * The account entry point in the header, next to `SettingsPopover`. Renders
+ * The account entry point in the header, next to the settings gear button.
+ * (The Settings modal's own Account tab shows the same signed-in/out state
+ * too — this stays as a separate quick-access control alongside it.) Renders
  * nothing at all when Supabase isn't configured — "unconfigured = the
  * feature simply isn't there" is the same rule `unsplashService.js` follows,
  * just applied to a whole component instead of a fallback image.

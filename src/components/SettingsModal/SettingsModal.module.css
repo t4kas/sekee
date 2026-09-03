@@ -1,0 +1,229 @@
+/* The `.overlay` backdrop is reused verbatim from BookmarkDialog.module.css
+   (see SettingsModal.jsx) — every modal in this app shares that dimmed,
+   blurred backdrop. Everything below is specific to this modal's much
+   larger two-pane layout, which the shared `.modal`/`.dialog` (capped at
+   420px, no internal structure) don't fit. */
+
+.modal {
+  width: 100%;
+  max-width: 720px;
+  height: 560px;
+  max-height: calc(100vh - var(--space-8));
+
+  display: flex;
+  flex-direction: column;
+
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+
+  background: var(--surface-solid);
+  backdrop-filter: var(--blur);
+  box-shadow: var(--shadow-lg);
+
+  /* Clips the sidebar/content grid to the modal's own rounded corners. */
+  overflow: hidden;
+}
+
+.modal[data-entering] {
+  animation: modal-in var(--duration-med) var(--ease);
+}
+
+.modal[data-exiting] {
+  animation: modal-in var(--duration-fast) var(--ease) reverse;
+}
+
+@keyframes modal-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.97);
+  }
+}
+
+.dialog {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  outline: none; /* the dialog takes focus programmatically; no ring needed */
+}
+
+/* --- Header: title + close button ----------------------------------------- */
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+
+  padding: var(--space-4) var(--space-5);
+  border-bottom: 1px solid var(--border);
+}
+
+.heading {
+  margin: 0;
+  font-size: var(--text-xl);
+  font-weight: 600;
+}
+
+.closeButton {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+
+  width: 32px;
+  height: 32px;
+  padding: 0;
+
+  border: none;
+  border-radius: 50%;
+
+  color: var(--fg-secondary);
+  background: transparent;
+  cursor: pointer;
+
+  transition:
+    background var(--duration-fast) var(--ease),
+    color var(--duration-fast) var(--ease);
+}
+
+.closeButton[data-hovered] {
+  background: var(--surface-hover);
+  color: var(--fg-primary);
+}
+
+.closeButton[data-pressed] {
+  transform: scale(0.94);
+}
+
+.closeButton[data-focus-visible] {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+/* --- Body: sidebar + content ------------------------------------------------ */
+
+.body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  flex-shrink: 0;
+
+  width: 180px;
+  padding: var(--space-3);
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+}
+
+.tabButton {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+
+  padding: var(--space-2) var(--space-3);
+  border: none;
+  border-radius: var(--radius-sm);
+
+  font-size: var(--text-sm);
+  color: var(--fg-secondary);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+
+  transition:
+    background var(--duration-fast) var(--ease),
+    color var(--duration-fast) var(--ease);
+}
+
+.tabButton[data-hovered] {
+  color: var(--fg-primary);
+  background: var(--surface-hover);
+}
+
+.tabButton[data-focus-visible] {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.tabButton[data-selected] {
+  color: var(--fg-primary);
+  background: var(--surface-active);
+}
+
+.content {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+  padding: var(--space-5);
+}
+
+/* --- Shared tab-content primitives, used by every *Tab.jsx ----------------- */
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.fullWidthButton {
+  width: 100%;
+}
+
+.hint {
+  margin: 0;
+  font-size: var(--text-xs);
+  line-height: 1.5;
+  color: var(--fg-muted);
+}
+
+.hint code {
+  padding: 1px 4px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.12);
+  font-size: 0.95em;
+}
+
+.statusRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--fg-secondary);
+}
+
+.statusRow svg {
+  flex-shrink: 0;
+  color: var(--fg-primary);
+}
+
+@media (max-width: 560px) {
+  .modal {
+    height: 100%;
+    max-height: calc(100vh - var(--space-4));
+  }
+
+  .body {
+    flex-direction: column;
+  }
+
+  .sidebar {
+    flex-direction: row;
+    width: 100%;
+    padding: var(--space-2);
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+    overflow-x: auto;
+    overflow-y: visible;
+  }
+
+  .tabButton {
+    flex-shrink: 0;
+  }
+}

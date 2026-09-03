@@ -14,6 +14,9 @@ import * as settingsService from '../services/settingsService.js';
 export function useSettings() {
   const [settings, setSettings] = useState(settingsService.DEFAULT_SETTINGS);
   const [isLoading, setIsLoading] = useState(true);
+  // Bumped by `refresh()` to force the load effect below to re-run — see its
+  // own comment for why the Settings modal's "Sync now" button needs this.
+  const [refreshCount, setRefreshCount] = useState(0);
 
   useEffect(() => {
     let isMounted = true;
@@ -33,7 +36,7 @@ export function useSettings() {
       isMounted = false;
       unsubscribe();
     };
-  }, []);
+  }, [refreshCount]);
 
   /** @param {Partial<typeof settingsService.DEFAULT_SETTINGS>} changes */
   const updateSettings = useCallback(async (changes) => {
@@ -42,5 +45,12 @@ export function useSettings() {
     await settingsService.saveSettings(changes);
   }, []);
 
-  return { settings, isLoading, updateSettings };
+  /** Re-reads settings from whichever adapter is active right now. The
+   *  subscription above already catches changes written through this same
+   *  browser, but sync is refresh-based (see `useAuth.js`) — this is what
+   *  the Settings modal's "Sync now" button calls to pull down whatever
+   *  changed on another device since the last load. */
+  const refresh = useCallback(() => setRefreshCount((count) => count + 1), []);
+
+  return { settings, isLoading, updateSettings, refresh };
 }

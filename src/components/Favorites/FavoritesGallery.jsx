@@ -2,7 +2,8 @@
  * FavoritesGallery
  * ---------------------------------------------------------------------------
  * "Manage favorites" — a modal grid of every favorited photo, opened from
- * `SettingsPopover`. Two jobs in one dialog rather than two separate UIs:
+ * the Settings modal's Preferences tab. Two jobs in one dialog rather than
+ * two separate UIs:
  *
  *  1. Browse/remove: every thumbnail has a remove button.
  *  2. Pick one to always show: when `settings.favoritesMode === 'fixed'`,

@@ -15,6 +15,9 @@ export function useBookmarks() {
   const [bookmarks, setBookmarks] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  // Bumped by `refresh()` to force the load effect below to re-run — see its
+  // own comment for why the Settings modal's "Sync now" button needs this.
+  const [refreshCount, setRefreshCount] = useState(0);
 
   // Initial load, plus a subscription so edits made in another open tab
   // show up here too.
@@ -43,7 +46,7 @@ export function useBookmarks() {
       isMounted = false;
       unsubscribe();
     };
-  }, []);
+  }, [refreshCount]);
 
   /**
    * Wraps a service call so every mutation shares the same behaviour:
@@ -77,5 +80,12 @@ export function useBookmarks() {
     [runMutation],
   );
 
-  return { bookmarks, isLoading, error, addBookmark, editBookmark, removeBookmark };
+  /** Re-reads bookmarks from whichever adapter is active right now. The
+   *  subscription above already catches changes written through this same
+   *  browser, but sync is refresh-based (see `useAuth.js`) — this is what
+   *  the Settings modal's "Sync now" button calls to pull down whatever
+   *  changed on another device since the last load. */
+  const refresh = useCallback(() => setRefreshCount((count) => count + 1), []);
+
+  return { bookmarks, isLoading, error, addBookmark, editBookmark, removeBookmark, refresh };
 }

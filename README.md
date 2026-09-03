@@ -185,7 +185,8 @@ src/
 │   │                         widget" above
 │   ├── BookmarkGrid/        the tile grid + favicon handling
 │   ├── BookmarkDialog/      add/edit form + delete confirmation
-│   ├── SettingsPopover/
+│   ├── SettingsModal/        sidebar-tabbed settings: Account, Preferences,
+│   │                         Sync, Weather
 │   ├── Account/              sign-in button + auth dialog
 │   └── Favorites/            the "manage favorites" gallery
 │
