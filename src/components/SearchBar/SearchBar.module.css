@@ -296,6 +296,77 @@
   font-weight: 700;
 }
 
+/* --- Link preview card -------------------------------------------------- */
+
+/* A URL-shaped suggestion (`LinkSuggestion` in SearchBar.jsx) needs up to
+   three lines — title, description, hostname — so the plain row's
+   single-line ellipsis truncation has to give way to this row specifically. */
+.suggestion[data-variant='link'] {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: unset;
+}
+
+.linkCard {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+
+.linkFavicon,
+.linkFaviconFallback {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  margin-top: 2px; /* optically centres the icon against the title's cap-height */
+  border-radius: var(--radius-sm);
+}
+
+.linkFavicon {
+  object-fit: contain;
+  /* Many favicons are pure white on transparent and vanish against the
+     dark dropdown; a faint plate behind them keeps every icon visible. */
+  background: rgba(255, 255, 255, 0.1);
+  padding: 2px;
+}
+
+.linkFaviconFallback {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--border);
+}
+
+.linkText {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0; /* lets the ellipsised lines below shrink instead of overflowing */
+}
+
+.linkTitle {
+  font-size: var(--text-md);
+  font-weight: 600;
+  color: var(--fg-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.linkDescription {
+  font-size: var(--text-sm);
+  color: var(--fg-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.linkUrl {
+  font-size: var(--text-xs);
+  color: var(--fg-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .suggestion {
     animation: none;

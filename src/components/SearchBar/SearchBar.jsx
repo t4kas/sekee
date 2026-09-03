@@ -27,6 +27,13 @@
  * text while that suggestion is arrow-key-highlighted, so Enter can submit it
  * without any special-casing — it's just whatever the field currently shows,
  * exactly like Google's own box.
+ *
+ * URL SUGGESTIONS RENDER AS CARDS: a suggestion that's itself a URL (Google
+ * suggests bare domains like "github.com" navigationally, not just search
+ * queries) renders as a small favicon/title/description card instead of a
+ * line of text — see `LinkSuggestion` below. `submitSearch` detects the same
+ * thing for whatever's actually submitted, so picking or typing a URL
+ * navigates straight to it instead of searching for the literal string.
  */
 
 import { useEffect, useId, useState } from 'react';
@@ -34,7 +41,10 @@ import { Button, Input, Label, SearchField } from 'react-aria-components';
 import { EngineLogo } from './EngineLogo.jsx';
 import { SearchIcon } from '../ui/icons.jsx';
 import { buildSearchUrl, getEngine } from '../../services/searchEngines.js';
+import { tryNormaliseUrl } from '../../services/bookmarksService.js';
+import { getFaviconUrl } from '../../services/favicons.js';
 import { useSearchSuggestions } from '../../hooks/useSearchSuggestions.js';
+import { useLinkPreview } from '../../hooks/useLinkPreview.js';
 import styles from './SearchBar.module.css';
 
 /** @param {{ engineId: string }} props */
@@ -65,14 +75,19 @@ export function SearchBar({ engineId }) {
     if (suggestions.length > 0) setRenderedSuggestions(suggestions);
   }, [suggestions]);
 
-  /** Sends a query to the chosen engine, replacing this page. */
+  /** Sends a query to the chosen engine — or, if `value` is itself a URL,
+   *  navigates straight to it, the same way a browser's address bar treats
+   *  a typed domain differently from a typed search term. Replaces this
+   *  page either way. */
   function submitSearch(value) {
     const trimmed = value.trim();
     if (!trimmed) return; // don't navigate on an empty search
 
+    const url = tryNormaliseUrl(trimmed);
+
     // `assign` rather than `open`: this is a homepage, so searching should
     // navigate this tab rather than spawn a second one.
-    window.location.assign(buildSearchUrl(engineId, trimmed));
+    window.location.assign(url ?? buildSearchUrl(engineId, trimmed));
   }
 
   function handleChange(value) {
@@ -190,41 +205,52 @@ export function SearchBar({ engineId }) {
             of being torn down and popped back onto screen. */}
         <div className={styles.suggestionsRow}>
           <ul className={styles.suggestions} id={listboxId} role="listbox">
-            {renderedSuggestions.map((suggestion, index) => (
-              <li
-                // Keyed on the suggestion's own text rather than its batch
-                // or index. A word that carries over between two fetches
-                // (typing "hel" -> "hell" often keeps "hello" in both
-                // lists) then keeps the same DOM node and just slides to
-                // its new position instead of being torn down and
-                // re-blurred-in — that's what makes consecutive batches
-                // read as one smooth update rather than a hard cut. Only
-                // genuinely new suggestions mount fresh and play the
-                // entrance animation.
-                key={suggestion}
-                id={`${listboxId}-option-${index}`}
-                role="option"
-                aria-selected={index === highlightedIndex}
-                className={styles.suggestion}
-                style={{ animationDelay: `${index * 20}ms` }}
-                data-highlighted={index === highlightedIndex || undefined}
-                // Stops the input from ever losing focus to this click, so
-                // there's no blur race with `onClick` selecting the suggestion.
-                onMouseDown={(event) => event.preventDefault()}
-                // `onMouseMove` rather than `onMouseEnter`: a row that
-                // appears directly under an already-still cursor (typing
-                // doesn't move the mouse) can end up "entered" the instant
-                // it renders, silently overwriting what's typed with a
-                // suggestion before the user has touched the mouse at all.
-                // `mousemove` only ever fires from genuine pointer motion,
-                // so hovering can't hijack the field until the user
-                // actually moves the mouse over the dropdown.
-                onMouseMove={() => highlight(index)}
-                onClick={() => selectSuggestion(suggestion)}
-              >
-                <MatchedSuggestion text={suggestion} query={typedQuery} />
-              </li>
-            ))}
+            {renderedSuggestions.map((suggestion, index) => {
+              const url = tryNormaliseUrl(suggestion);
+
+              return (
+                <li
+                  // Keyed on the suggestion's own text rather than its batch
+                  // or index. A word that carries over between two fetches
+                  // (typing "hel" -> "hell" often keeps "hello" in both
+                  // lists) then keeps the same DOM node and just slides to
+                  // its new position instead of being torn down and
+                  // re-blurred-in — that's what makes consecutive batches
+                  // read as one smooth update rather than a hard cut. Only
+                  // genuinely new suggestions mount fresh and play the
+                  // entrance animation.
+                  key={suggestion}
+                  id={`${listboxId}-option-${index}`}
+                  role="option"
+                  aria-selected={index === highlightedIndex}
+                  className={styles.suggestion}
+                  // Loosens the plain row's single-line truncation so a
+                  // multi-line card can lay out its title and description.
+                  data-variant={url ? 'link' : undefined}
+                  style={{ animationDelay: `${index * 20}ms` }}
+                  data-highlighted={index === highlightedIndex || undefined}
+                  // Stops the input from ever losing focus to this click, so
+                  // there's no blur race with `onClick` selecting the suggestion.
+                  onMouseDown={(event) => event.preventDefault()}
+                  // `onMouseMove` rather than `onMouseEnter`: a row that
+                  // appears directly under an already-still cursor (typing
+                  // doesn't move the mouse) can end up "entered" the instant
+                  // it renders, silently overwriting what's typed with a
+                  // suggestion before the user has touched the mouse at all.
+                  // `mousemove` only ever fires from genuine pointer motion,
+                  // so hovering can't hijack the field until the user
+                  // actually moves the mouse over the dropdown.
+                  onMouseMove={() => highlight(index)}
+                  onClick={() => selectSuggestion(suggestion)}
+                >
+                  {url ? (
+                    <LinkSuggestion url={url} fallbackLabel={suggestion} />
+                  ) : (
+                    <MatchedSuggestion text={suggestion} query={typedQuery} />
+                  )}
+                </li>
+              );
+            })}
           </ul>
         </div>
       </div>
@@ -252,5 +278,65 @@ function MatchedSuggestion({ text, query }) {
       <strong className={styles.suggestionMatch}>{text.slice(0, trimmedQuery.length)}</strong>
       {text.slice(trimmedQuery.length)}
     </>
+  );
+}
+
+/**
+ * A URL-shaped suggestion — a bare domain like "github.com", not a search
+ * phrase — renders as a small link-preview card instead of a line of text:
+ * favicon, page title and meta description, the same information a
+ * browser's own address bar shows for a matching history entry.
+ *
+ * `useLinkPreview` never throws and resolves to `null` on any failure, so
+ * the card always has something to show even with no network: the bare
+ * hostname (`fallbackLabel`, the original suggestion text) in place of a
+ * fetched title, and no description line.
+ * @param {{ url: string, fallbackLabel: string }} props
+ */
+function LinkSuggestion({ url, fallbackLabel }) {
+  const preview = useLinkPreview(url);
+  const hostname = new URL(url).hostname.replace(/^www\./, '');
+
+  return (
+    <div className={styles.linkCard}>
+      <LinkFavicon url={url} />
+      <div className={styles.linkText}>
+        <span className={styles.linkTitle}>{preview?.title || fallbackLabel}</span>
+        {preview?.description && (
+          <span className={styles.linkDescription}>{preview.description}</span>
+        )}
+        <span className={styles.linkUrl}>{hostname}</span>
+      </div>
+    </div>
+  );
+}
+
+/** The card's icon, with the same graceful fallback as a bookmark tile's
+ *  (see `BookmarkGrid/Favicon.jsx`): favicon services fail regularly, and a
+ *  broken-image glyph in the middle of a dropdown row would be worse than no
+ *  icon at all. Kept local rather than reusing that component because its
+ *  CSS module hard-codes bookmark-tile sizing (32px) — this row needs a
+ *  smaller icon to fit a single text line. */
+function LinkFavicon({ url }) {
+  const src = getFaviconUrl(url, 64);
+  const [hasFailed, setHasFailed] = useState(false);
+
+  useEffect(() => {
+    setHasFailed(false);
+  }, [src]);
+
+  if (!src || hasFailed) return <span className={styles.linkFaviconFallback} aria-hidden="true" />;
+
+  return (
+    <img
+      className={styles.linkFavicon}
+      src={src}
+      // Decorative — the title text beside it already names the site.
+      alt=""
+      width={20}
+      height={20}
+      loading="lazy"
+      onError={() => setHasFailed(true)}
+    />
   );
 }

@@ -115,6 +115,18 @@ export function normaliseUrl(input) {
   return url.toString();
 }
 
+/** Like `normaliseUrl`, but returns `null` instead of throwing — for call
+ *  sites that just want to know "is this a URL?" without a try/catch, e.g.
+ *  deciding whether an autocomplete suggestion should render as a link
+ *  preview card. */
+export function tryNormaliseUrl(input) {
+  try {
+    return normaliseUrl(input);
+  } catch {
+    return null;
+  }
+}
+
 /** Fills in a sensible title when the user leaves the title field blank:
  *  "https://news.ycombinator.com/x" -> "news.ycombinator.com" */
 export function titleFromUrl(url) {
