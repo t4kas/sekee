@@ -137,8 +137,10 @@
 
 /* --- Input ---------------------------------------------------------------- */
 
-/* The SearchField wrapper; the pill's own padding does the spacing. */
+/* The SearchField wrapper; the pill's own padding does the spacing.
+   `position: relative` is what `.ghost` below hangs off. */
 .field {
+  position: relative;
   display: flex;
   flex: 1;
   min-width: 0; /* lets the input shrink instead of overflowing the flex row */
@@ -151,6 +153,10 @@
   border: none;
   background: none;
   outline: none;
+  /* Not just tidiness: `.ghost` below has to start its text at exactly the
+     same x as the input does, and the UA's own few pixels of input padding
+     would put the two out of step. */
+  padding: 0;
 
   font-size: var(--text-lg);
   color: var(--fg-primary);
@@ -163,6 +169,53 @@
 /* WebKit draws its own clear button on type="search"; we don't use it. */
 .input::-webkit-search-cancel-button {
   display: none;
+}
+
+/* --- Inline completion ---------------------------------------------------- */
+
+/* The rest of the top suggestion, shown behind the caret for Tab to take.
+   An <input> can't hold markup, so this is a second copy of the line laid
+   over the field: the typed part invisible but still taking up its width,
+   the remainder visible after it. That only lines up while this and `.input`
+   render text identically — same family (both inherit it), same size (below,
+   including the narrow-screen override), no padding on either.
+
+   `overflow: hidden` also handles the one case the trick can't: a query long
+   enough to scroll the input. The invisible prefix is then wider than the
+   box, so the remainder is pushed past the right edge and clipped away
+   rather than drifting out of alignment with the text it belongs to. */
+.ghost {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  pointer-events: none;
+
+  font-size: var(--text-lg);
+  white-space: pre; /* keeps a trailing space in the typed part */
+  color: var(--fg-muted);
+}
+
+.ghostTyped {
+  visibility: hidden;
+}
+
+/* Resolves out of a blur, so a completion arriving under the caret settles
+   into focus instead of blinking into existence. */
+.ghostText {
+  animation: ghost-in 260ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes ghost-in {
+  from {
+    opacity: 0;
+    filter: blur(5px);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+  }
 }
 
 /* --- Submit button -------------------------------------------------------- */
@@ -214,7 +267,8 @@
     padding-left: var(--space-4);
   }
 
-  .input {
+  .input,
+  .ghost {
     font-size: var(--text-md);
   }
 }
@@ -400,7 +454,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .suggestion {
+  .suggestion,
+  .ghostText {
     animation: none;
   }
 

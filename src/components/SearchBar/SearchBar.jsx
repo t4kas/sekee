@@ -135,6 +135,19 @@ export function SearchBar({ engineId }) {
     if (suggestions.length > 0) setRenderedSuggestions(suggestions);
   }, [suggestions]);
 
+  // The top suggestion, when it's a continuation of what's actually in the
+  // field — the rest of it is drawn behind the caret as ghost text and Tab
+  // takes it (see `.ghost` in the stylesheet and `handleInputKeyDownCapture`
+  // below). `displayValue === typedQuery` is the load-bearing condition:
+  // arrowing the dropdown puts a whole suggestion in the field, and there is
+  // nothing left to complete once it's already there.
+  const completion = useMemo(() => {
+    const first = orderedSuggestions[0];
+    if (!isOpen || !first || !typedQuery || displayValue !== typedQuery) return null;
+    if (first.length <= typedQuery.length) return null;
+    return first.toLowerCase().startsWith(typedQuery.toLowerCase()) ? first : null;
+  }, [isOpen, orderedSuggestions, typedQuery, displayValue]);
+
   /** Sends a query to the chosen engine — or, if `value` is itself a URL,
    *  navigates straight to it, the same way a browser's address bar treats
    *  a typed domain differently from a typed search term. Replaces this
@@ -182,7 +195,15 @@ export function SearchBar({ engineId }) {
   function handleInputKeyDownCapture(event) {
     if (!isOpen || orderedSuggestions.length === 0) return;
 
-    if (event.key === 'ArrowDown') {
+    // Tab takes the ghost completion, the way a shell or an address bar
+    // does. Only ever when there's actually something to take: with no
+    // completion showing this falls through untouched, so Tab still moves
+    // focus out of the search bar as it always has.
+    if (event.key === 'Tab' && !event.shiftKey && completion) {
+      event.preventDefault();
+      event.stopPropagation();
+      handleChange(completion); // accepting it is exactly like having typed it
+    } else if (event.key === 'ArrowDown') {
       event.preventDefault();
       event.stopPropagation();
       highlight(highlightedIndex < orderedSuggestions.length - 1 ? highlightedIndex + 1 : -1);
@@ -250,13 +271,41 @@ export function SearchBar({ engineId }) {
                   setIsFocused(false);
                 }}
                 role="combobox"
-                aria-autocomplete="list"
+                /* "both": there's the dropdown *and* the inline completion
+                   drawn behind the caret below. */
+                aria-autocomplete="both"
                 aria-expanded={isOpen}
                 aria-controls={listboxId}
                 aria-activedescendant={
                   highlightedIndex >= 0 ? `${listboxId}-option-${highlightedIndex}` : undefined
                 }
               />
+
+              {/* The rest of the top suggestion, drawn behind the caret. It
+                  sits in its own layer over `.field` rather than inside the
+                  input (which can't hold markup), and reproduces what's been
+                  typed as invisible text so the visible remainder starts
+                  exactly where the real text stops — see the stylesheet on
+                  keeping the two typographically identical.
+
+                  `aria-hidden` because this is a duplicate of text the input
+                  already exposes: the combobox announces its own value, and
+                  `aria-autocomplete="both"` above is what tells a screen
+                  reader an inline completion is on offer. */}
+              {completion && (
+                <span className={styles.ghost} aria-hidden="true">
+                  <span className={styles.ghostTyped}>{displayValue}</span>
+                  {/* Keyed on the whole completion so it replays its fade
+                      only when the suggestion itself changes. Typing the
+                      next character of the *same* completion just shortens
+                      this text in place, which is what makes the ghost read
+                      as standing still while the real text eats into it,
+                      rather than flickering on every keystroke. */}
+                  <span className={styles.ghostText} key={completion}>
+                    {completion.slice(displayValue.length)}
+                  </span>
+                </span>
+              )}
             </SearchField>
 
             {/* React Aria's own Button rather than our styled wrapper, so this
