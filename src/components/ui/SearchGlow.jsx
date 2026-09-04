@@ -27,13 +27,12 @@
  * that would immediately go stale, `measure` reads the child's own computed
  * corner radii (all four, independently) and box size on every
  * ResizeObserver tick, and the ring is rebuilt from those — the ring hugs
- * whatever the child currently is, dropdown open or closed. The spotlight is
- * scaled from that same measured height (see `spotlightRadius` below), which
- * is what makes the glow tighter on the collapsed bar and wider once the
- * suggestions open without either size being configured separately. Note
- * this all makes the child's own box the thing being drawn around, so the
- * wrapper must not add padding or a transform of its own that the child
- * doesn't share.
+ * whatever the child currently is, dropdown open or closed. That measured
+ * height also bounds the spotlight (see `moveSpotlight`), which is what
+ * keeps the glow off both long edges at once on the collapsed bar without
+ * having to narrow it. Note this all makes the child's own box the thing
+ * being drawn around, so the wrapper must not add padding or a transform of
+ * its own that the child doesn't share.
  *
  * PROXIMITY, NOT "EDGE SENSITIVITY": the vendored version measured how close
  * the pointer was to the card's own edge, so it never reacted until the
@@ -148,7 +147,7 @@ const SearchGlow = ({
   ringWidth = 2.5,
   glowWidth = 13,
   blurStdDeviation = 4,
-  spotlightRatio = 0.52,
+  spotlightSpread = 150,
   proximityRange = 90,
   introDuration = 1500,
   colors = ['#7cc0ff', '#93c5fd', '#38bdf8'],
@@ -159,6 +158,7 @@ const SearchGlow = ({
   const cancelIntroRef = useRef(null);
   const introPlayingRef = useRef(false);
   const lastPointRef = useRef(null);
+  const spotPointRef = useRef({ x: 0, y: 0 });
   const gradientId = useId();
 
   const [size, setSize] = useState({ width: 0, height: 0 });
@@ -191,9 +191,51 @@ const SearchGlow = ({
     return () => observer.disconnect();
   }, []);
 
-  function moveSpotlight(x, y) {
-    spotRef.current?.setAttribute('cx', x.toFixed(1));
-    spotRef.current?.setAttribute('cy', y.toFixed(1));
+  // How far the spotlight is squashed depends on the box's height, so a box
+  // that grows under a stationary pointer — exactly what happens when the
+  // suggestions open while you type — would otherwise keep the collapsed
+  // bar's squash until the mouse next moved.
+  useEffect(() => {
+    const last = lastPointRef.current;
+    if (last && focusRef.current && !introPlayingRef.current) applyPoint(last.x, last.y);
+    else moveSpotlight(spotPointRef.current.x, spotPointRef.current.y, size.height);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [size.width, size.height, spotlightSpread]);
+
+  /**
+   * Puts the spotlight at (`x`, `y`) in the box's own coordinates, squashed
+   * to an ellipse that can't reach across the box vertically.
+   *
+   * WHY AN ELLIPSE AND NOT A CIRCLE. Two things are wanted at once: a long
+   * lit stretch of ring, and nothing at all on the opposite edge. A circle
+   * can't do both on the collapsed bar — it's only ~68px tall, so a radius
+   * big enough to light a wide stretch of the top edge also reaches the
+   * bottom one from anywhere inside, and shrinking it until it can't takes
+   * the width away with it. The two demands are really about different
+   * axes, so they get separate radii: `spotlightSpread` horizontally (how
+   * much of the edge lights up, unchanged whether collapsed or expanded),
+   * and at most half the box's height vertically, which is the exact
+   * condition for the pointer's two distances to the long edges — they
+   * always sum to the full height — never both falling inside it.
+   *
+   * SVG gradients are circular, so the ellipse comes from `gradientTransform`
+   * scaling the y axis about the spotlight itself. The `translate` is what
+   * pins it there: scaling alone would drag the centre toward the top of the
+   * box as it squashed.
+   */
+  function moveSpotlight(x, y, boxHeight) {
+    const spot = spotRef.current;
+    if (!spot) return;
+
+    spotPointRef.current = { x, y };
+    const squash = boxHeight > 0 ? Math.min(spotlightSpread, boxHeight / 2) / spotlightSpread : 1;
+
+    spot.setAttribute('cx', x.toFixed(1));
+    spot.setAttribute('cy', y.toFixed(1));
+    spot.setAttribute(
+      'gradientTransform',
+      `translate(0 ${(y * (1 - squash)).toFixed(2)}) scale(1 ${squash.toFixed(4)})`,
+    );
   }
 
   /**
@@ -219,6 +261,7 @@ const SearchGlow = ({
     moveSpotlight(
       Math.max(0, Math.min(rect.width, clientX - rect.left)),
       Math.max(0, Math.min(rect.height, clientY - rect.top)),
+      rect.height,
     );
   }
 
@@ -288,12 +331,12 @@ const SearchGlow = ({
     const height = wrap.offsetHeight;
     const fadeDuration = 420;
 
-    moveSpotlight(...pointOnPerimeter(0, width, height));
+    moveSpotlight(...pointOnPerimeter(0, width, height), height);
     animateValue({
       duration: introDuration,
       ease: easeInOutCubic,
       onUpdate: (t) => {
-        if (!cancelled) moveSpotlight(...pointOnPerimeter(t, width, height));
+        if (!cancelled) moveSpotlight(...pointOnPerimeter(t, width, height), height);
       },
     });
     animateValue({
@@ -321,25 +364,13 @@ const SearchGlow = ({
   const outline = roundedRectPath(width, height, radii, ringWidth / 2);
   const clipRadius = radii.map((r) => `${r}px`).join(' ');
 
-  // The spotlight is sized from the box's own height rather than being a
-  // fixed number of pixels, which does two jobs at once.
-  //
-  // It keeps the glow off both long edges at the same time. Collapsed, this
-  // box is a ~68px-tall bar: a spotlight big enough to look generous also
-  // reaches the top *and* bottom edges from anywhere inside it, lighting
-  // both — the pointer is never more than ~34px from either. At a ratio just
-  // over half the height, the pointer's distances to the two edges (which
-  // always sum to the full height) can't both land inside the radius, so
-  // whichever edge it's nearer is the one that lights. Dead on the centre
-  // line the two are equal and both sit at the very tail of the gradient,
-  // which is why the ratio is only *just* over half: any more headroom and
-  // that tail is bright enough to read as a glow on both edges at once.
-  //
-  // And it widens the spread on its own once the suggestions open: the same
-  // ratio against a much taller box is a much larger spotlight, with no
-  // second value to pass in and no jump — the box's height animates, so the
-  // radius rides along with it.
-  const spotlightRadius = height * spotlightRatio;
+  // The gradient's own radius is the *horizontal* one — the same whether
+  // collapsed or expanded, so the lit stretch of edge is as long either way.
+  // `moveSpotlight` is what squashes it vertically per the box's height; it
+  // only needs capping here for a box narrower than the spread, so that the
+  // left and right edges can't both light for the same reason the top and
+  // bottom can't.
+  const spotlightRadius = width > 0 ? Math.min(spotlightSpread, width / 2) : spotlightSpread;
 
   return (
     <div ref={wrapRef} className={className} style={{ position: 'relative' }}>
