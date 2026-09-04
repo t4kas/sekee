@@ -2,16 +2,21 @@
   width: 100%;
 }
 
-/* Registering `--glow-angle` as an `<angle>` (rather than leaving it an
-   untyped custom property) is what makes it animatable at all — per spec,
-   the browser can only smoothly interpolate a custom property between
-   keyframes if it knows its value is a single angle, not an opaque string.
-   Unsupported browsers (pre-2023 Firefox) just don't animate the rotation;
-   everything else about `.frame` still works. */
-@property --glow-angle {
-  syntax: '<angle>';
-  inherits: false;
-  initial-value: 0deg;
+/* Wraps `.frame` — see SearchBar.jsx for why: the glow itself is a vendored
+   `BorderGlow` (ui/BorderGlow.jsx, from
+   https://reactbits.dev/components/border-glow), which needs a real DOM
+   ancestor, not something `.frame`'s own CSS could grow on its own.
+   `!important`: BorderGlow.css's own `.border-glow-card` unconditionally
+   paints a faint border + ambient shadow (its idle-state look, by vendor
+   design) at equal specificity to this class — this app's search bar has
+   no idle-state chrome at all until focused, only the glow itself should
+   ever show, so these four overrides need to win regardless of stylesheet
+   import order. */
+.glowWrap {
+  border-radius: 25px !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  background: transparent !important;
 }
 
 /* The focus frame. Sits around `.bar` and, once suggestions are open, around
@@ -63,55 +68,6 @@
   transform: translateY(-3px);
 }
 
-/* A light beam that travels continuously around `.frame`'s own edge —
-   https://reactbits.dev/components/border-glow. `inset: -1px` + `padding:
-   2px` and the mask pair below are what confine a `conic-gradient` (which
-   paints its whole box, corner to corner) down to just a thin ring: the
-   mask keeps only the band between the pseudo-element's own edge and its
-   padding-box, cutting the filled centre away entirely. `z-index: -1` tucks
-   it behind `.frame`'s own background/`.bar`, so what actually reads as
-   "glowing" is the sliver of the padding gap between them — the frame
-   hugging the pill is what makes that gap exist in the first place. */
-.frame::before {
-  content: '';
-  position: absolute;
-  inset: -1px;
-  z-index: -1;
-  border-radius: inherit;
-  padding: 2px;
-
-  background: conic-gradient(
-    from var(--glow-angle),
-    transparent 0deg,
-    color-mix(in srgb, var(--accent) 85%, transparent) 25deg,
-    transparent 70deg,
-    transparent 360deg
-  );
-  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-  mask-composite: exclude;
-
-  opacity: 0;
-  transition: opacity var(--duration-med) var(--ease);
-}
-
-.frame:focus-within::before {
-  opacity: 1;
-  animation: glow-rotate 2.4s linear infinite;
-}
-
-@keyframes glow-rotate {
-  to {
-    --glow-angle: 360deg;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .frame:focus-within::before {
-    animation: none;
-  }
-}
 
 .frame[data-open] {
   grid-template-rows: auto 1fr;
