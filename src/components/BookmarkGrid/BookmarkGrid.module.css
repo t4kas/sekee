@@ -64,12 +64,26 @@
   cursor: grabbing;
 }
 
-/* React Aria's own default drop-target indicator — an unstyled element by
-   default, so it needs *something* here to actually show where a drag would
-   land. */
+/* Smoother and slightly slower than the base `.item` transition (which is
+   tuned for a quick hover lift) — a drop target should read as a deliberate
+   highlight, not a flicker. */
 .item[data-drop-target] {
   outline: 2px solid var(--accent);
   outline-offset: -2px;
+  transition: outline-color var(--duration-med) var(--ease);
+}
+
+/* React Aria inserts this as a real DOM node between whichever two tiles
+   the drag is currently hovering — see BookmarkGrid.jsx's file header,
+   point 3, for why that's a problem in a CSS grid. `position: absolute`
+   removes it from grid auto-placement entirely (per the CSS Grid spec,
+   absolutely-positioned items don't occupy a track), so it can never shift
+   the tiles around it — it's a hidden, zero-footprint marker only, with
+   `.item[data-drop-target]`'s outline above doing the actual signalling. */
+.dropIndicator {
+  position: absolute;
+  width: 0;
+  height: 0;
 }
 
 /* The anchor fills the tile, so the whole tile is a click target. */
@@ -118,6 +132,34 @@
 .host {
   font-size: var(--text-xs);
   color: var(--fg-muted);
+}
+
+/* --- Drag preview ----------------------------------------------------------
+   Stands in for the browser's native drag image — see BookmarkGrid.jsx's
+   file header, point 3, for why: `backdrop-filter` doesn't reliably survive
+   the browser's own snapshot of the dragged element, so this is a plain,
+   solid-background copy instead. */
+.dragPreview {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  max-width: 220px;
+  padding: var(--space-3);
+
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface-solid);
+  box-shadow: var(--shadow-lg);
+
+  color: var(--fg-primary);
+  font-size: var(--text-md);
+  font-weight: 500;
+}
+
+.dragPreviewTitle {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* --- Empty state & add button --------------------------------------------- */

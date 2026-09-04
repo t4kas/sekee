@@ -38,16 +38,95 @@
  *     computes the new id order and hands it to `onReorder`, which is
  *     `useBookmarks.js`'s `reorderBookmarks` — persisted the same way any
  *     other edit is, no separate "save layout" step.
+ *
+ *     Two defaults fight the fluid feel a drag-and-drop reorder should have,
+ *     so both are overridden:
+ *
+ *     - React Aria inserts a real `<DropIndicator>` element into the DOM
+ *       between whichever two items you're currently hovering between. In a
+ *       `layout="stack"` list that's a harmless extra row; in this
+ *       `auto-fill` CSS grid it's an extra grid item, which shifts every
+ *       tile after it into the next column for as long as you hover there —
+ *       the grid visibly reflows mid-drag. `.dropIndicator`'s `position:
+ *       absolute` (see BookmarkGrid.module.css) takes it out of grid flow
+ *       entirely per the CSS Grid spec's placement rules — the same signal
+ *       (`.item[data-drop-target]`'s outline) still shows where a drop would
+ *       land, just without the layout side effect.
+ *     - Without a `renderDragPreview`, the browser's native drag image is a
+ *       literal snapshot of the tile — and snapshotting a `backdrop-filter`
+ *       element mid-frame is unreliable, occasionally rendering as a solid
+ *       black or fully transparent rectangle. `renderDragPreview` swaps in a
+ *       plain, filter-free copy instead.
+ *
+ *     A third piece, `useReorderAnimation` below, is additive rather than a
+ *     default being fought: React Aria's `<GridList>` reorders its rows in
+ *     the DOM itself the instant a drop lands — ahead of and independent of
+ *     `onReorder` persisting the new order back through `bookmarks`, which
+ *     only catches up later once `reorderBookmarks` finishes its (async,
+ *     see `bookmarksService.js`) round trip through storage — so without
+ *     this, tiles would simply teleport to their new grid cells with no
+ *     animation to watch for. It's a FLIP animation hooked into that same
+ *     `onReorder` callback: measure every tile's position just before
+ *     calling it, then measure again a couple of frames later (after React
+ *     Aria's own re-layout has actually painted) and animate from the old
+ *     position to the new one.
  */
 
-import { GridList, GridListItem, MenuItem, useDragAndDrop } from 'react-aria-components';
-import { useState } from 'react';
+import { DropIndicator, GridList, GridListItem, MenuItem, useDragAndDrop } from 'react-aria-components';
+import { useCallback, useRef, useState } from 'react';
 import { Button } from '../ui/Button.jsx';
 import { ContextMenu } from '../ui/ContextMenu.jsx';
 import { EditIcon, PlusIcon, TrashIcon } from '../ui/icons.jsx';
 import { Favicon } from './Favicon.jsx';
 import contextMenuStyles from '../ui/ContextMenu.module.css';
 import styles from './BookmarkGrid.module.css';
+
+/**
+ * Returns `{ containerRef, captureReorder }` — see the file header's point 3.
+ * `containerRef` goes on the `<GridList>`; `captureReorder` is called at the
+ * start of `onReorder`, before React Aria has moved anything.
+ */
+function useReorderAnimation() {
+  const containerRef = useRef(null);
+
+  const captureReorder = useCallback(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const before = new Map();
+    for (const node of container.querySelectorAll('[data-key]')) {
+      before.set(node.dataset.key, node.getBoundingClientRect());
+    }
+
+    // Two frames, not one: the first is where React Aria's own state update
+    // (triggered by this same drop) commits and re-renders the reordered
+    // rows; without waiting for a second, `getBoundingClientRect()` below
+    // can still catch the browser mid-layout and read stale positions.
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        const duration = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--duration-med'));
+        if (duration <= 0) return; // prefers-reduced-motion — see tokens.css
+
+        for (const node of container.querySelectorAll('[data-key]')) {
+          const prevRect = before.get(node.dataset.key);
+          if (!prevRect) continue; // a newly-added tile has no "old" position to animate from
+
+          const rect = node.getBoundingClientRect();
+          const dx = prevRect.left - rect.left;
+          const dy = prevRect.top - rect.top;
+          if (!dx && !dy) continue;
+
+          node.animate(
+            [{ transform: `translate(${dx}px, ${dy}px)` }, { transform: 'translate(0, 0)' }],
+            { duration, easing: 'cubic-bezier(0.2, 0, 0.2, 1)' },
+          );
+        }
+      });
+    });
+  }, []);
+
+  return { containerRef, captureReorder };
+}
 
 /** "https://news.ycombinator.com/x" -> "news.ycombinator.com" */
 function displayHost(url) {
@@ -72,11 +151,13 @@ function displayHost(url) {
 export function BookmarkGrid({ bookmarks, isLoading, sortMode, onEdit, onDelete, onAdd, onOpen, onReorder }) {
   // { bookmarkId, x, y } | null — see the file header's point 2.
   const [contextMenu, setContextMenu] = useState(null);
+  const { containerRef: gridRef, captureReorder } = useReorderAnimation();
 
   const { dragAndDropHooks } = useDragAndDrop({
     isDisabled: sortMode !== 'custom',
     getItems: (keys) => [...keys].map((key) => ({ 'text/plain': String(key) })),
     onReorder(event) {
+      captureReorder();
       const draggedIds = [...event.keys].map(String);
       const remaining = bookmarks.map((bookmark) => bookmark.id).filter((id) => !draggedIds.includes(id));
 
@@ -85,6 +166,24 @@ export function BookmarkGrid({ bookmarks, isLoading, sortMode, onEdit, onDelete,
       remaining.splice(insertAt, 0, ...draggedIds);
 
       onReorder(remaining);
+    },
+    // See the file header's point 3: kept out of CSS grid flow so hovering
+    // between tiles doesn't shift the rest of the grid over to make room
+    // for it. `.item[data-drop-target]`'s outline is the actual "drop here"
+    // signal the user sees.
+    renderDropIndicator: (target) => <DropIndicator target={target} className={styles.dropIndicator} />,
+    // See the file header's point 3: the browser's native drag image is an
+    // unreliable snapshot of a `backdrop-filter` element, so this stands in
+    // a plain, filter-free copy instead.
+    renderDragPreview: (items) => {
+      const bookmark = bookmarks.find((candidate) => candidate.id === items[0]?.['text/plain']);
+      if (!bookmark) return <div />;
+      return (
+        <div className={styles.dragPreview}>
+          <Favicon url={bookmark.url} title={bookmark.title} />
+          <span className={styles.dragPreviewTitle}>{bookmark.title}</span>
+        </div>
+      );
     },
   });
 
@@ -97,6 +196,7 @@ export function BookmarkGrid({ bookmarks, isLoading, sortMode, onEdit, onDelete,
   return (
     <section className={styles.section} aria-label="Bookmarks">
       <GridList
+        ref={gridRef}
         className={styles.grid}
         aria-label="Bookmarks"
         // Purely presentational — lets the CSS show a grab cursor only when
