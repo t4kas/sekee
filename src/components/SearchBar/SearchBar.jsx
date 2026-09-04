@@ -36,7 +36,7 @@
  * navigates straight to it instead of searching for the literal string.
  */
 
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Button, Input, Label, SearchField } from 'react-aria-components';
 import { EngineLogo } from './EngineLogo.jsx';
 import { SearchIcon } from '../ui/icons.jsx';
@@ -46,12 +46,43 @@ import { tryNormaliseUrl } from '../../services/bookmarksService.js';
 import { getFaviconUrl } from '../../services/favicons.js';
 import { useSearchSuggestions } from '../../hooks/useSearchSuggestions.js';
 import { useLinkPreview } from '../../hooks/useLinkPreview.js';
+import { useReorderFlip } from '../../hooks/useReorderFlip.js';
 import styles from './SearchBar.module.css';
 
 // This app's accent (tokens.css's `--accent: #7cc0ff`) plus two related
 // blues, so `SearchGlow`'s ring reads as *this app's* color rather than an
 // arbitrary rainbow.
 const GLOW_COLORS = ['#7cc0ff', '#93c5fd', '#38bdf8'];
+
+/**
+ * Moves a suggestion that the query has become word-for-word to the front of
+ * the list. Google returns its own ordering and doesn't necessarily lead with
+ * the exact match — typing all of "defrag racing" can still leave "defrag
+ * racing" fifth, below four rows the query no longer really resembles.
+ *
+ * The reorder is derived per render rather than folded into the stored batch,
+ * which is what makes it feel immediate: suggestions are debounced, so the
+ * batch on screen when you finish a word is the one fetched for its
+ * second-to-last keystroke. Promoting on the *typed* text instead means the
+ * row rises the moment the word is complete, and the batch that arrives
+ * ~150ms later simply confirms it rather than moving anything again.
+ *
+ * Returns the original array when there's nothing to do, so an unchanged list
+ * stays referentially stable.
+ */
+function promoteExactMatch(suggestions, query) {
+  const needle = query.trim().toLowerCase();
+  if (!needle) return suggestions;
+
+  const match = suggestions.findIndex((suggestion) => suggestion.toLowerCase() === needle);
+  if (match <= 0) return suggestions; // absent, or already leading
+
+  return [
+    suggestions[match],
+    ...suggestions.slice(0, match),
+    ...suggestions.slice(match + 1),
+  ];
+}
 
 /** @param {{ engineId: string }} props */
 export function SearchBar({ engineId }) {
@@ -75,6 +106,20 @@ export function SearchBar({ engineId }) {
   const engine = getEngine(engineId);
   const suggestions = useSearchSuggestions(engineId, typedQuery);
   const listboxId = useId();
+
+  // What the dropdown actually shows, and the order everything else works in
+  // — the highlight index and arrow keys included, so they always mean the
+  // row you can see rather than the position Google happened to return it in.
+  const orderedSuggestions = useMemo(
+    () => promoteExactMatch(renderedSuggestions, typedQuery),
+    [renderedSuggestions, typedQuery],
+  );
+
+  // Slides rows that changed places, which is what turns the promotion above
+  // into something you can follow rather than a list that has silently
+  // rearranged itself between frames.
+  const listRef = useRef(null);
+  useReorderFlip(listRef);
 
   // A fresh batch of suggestions opens the dropdown (or closes it, if the
   // batch is empty) and drops any highlight left over from the last batch.
@@ -109,7 +154,7 @@ export function SearchBar({ engineId }) {
    *  (`-1` means "no highlight", i.e. back to what was actually typed). */
   function highlight(index) {
     setHighlightedIndex(index);
-    setDisplayValue(index === -1 ? typedQuery : renderedSuggestions[index]);
+    setDisplayValue(index === -1 ? typedQuery : orderedSuggestions[index]);
   }
 
   function selectSuggestion(suggestion) {
@@ -129,16 +174,16 @@ export function SearchBar({ engineId }) {
    * normal.
    */
   function handleInputKeyDownCapture(event) {
-    if (!isOpen || suggestions.length === 0) return;
+    if (!isOpen || orderedSuggestions.length === 0) return;
 
     if (event.key === 'ArrowDown') {
       event.preventDefault();
       event.stopPropagation();
-      highlight(highlightedIndex < suggestions.length - 1 ? highlightedIndex + 1 : -1);
+      highlight(highlightedIndex < orderedSuggestions.length - 1 ? highlightedIndex + 1 : -1);
     } else if (event.key === 'ArrowUp') {
       event.preventDefault();
       event.stopPropagation();
-      highlight(highlightedIndex <= -1 ? suggestions.length - 1 : highlightedIndex - 1);
+      highlight(highlightedIndex <= -1 ? orderedSuggestions.length - 1 : highlightedIndex - 1);
     } else if (event.key === 'Escape') {
       event.preventDefault();
       event.stopPropagation();
@@ -226,8 +271,8 @@ export function SearchBar({ engineId }) {
               across an update keeps its DOM node (see the key below) instead
               of being torn down and popped back onto screen. */}
           <div className={styles.suggestionsRow}>
-            <ul className={styles.suggestions} id={listboxId} role="listbox">
-              {renderedSuggestions.map((suggestion, index) => {
+            <ul className={styles.suggestions} id={listboxId} role="listbox" ref={listRef}>
+              {orderedSuggestions.map((suggestion, index) => {
                 const url = tryNormaliseUrl(suggestion);
 
                 return (
@@ -240,8 +285,12 @@ export function SearchBar({ engineId }) {
                     // re-blurred-in — that's what makes consecutive batches
                     // read as one smooth update rather than a hard cut. Only
                     // genuinely new suggestions mount fresh and play the
-                    // entrance animation.
+                    // entrance animation. `data-flip-key` is the same value
+                    // again, for `useReorderFlip` above: React needs it to
+                    // keep the node, the hook needs it to recognise the node
+                    // it kept.
                     key={suggestion}
+                    data-flip-key={suggestion}
                     id={`${listboxId}-option-${index}`}
                     role="option"
                     aria-selected={index === highlightedIndex}
