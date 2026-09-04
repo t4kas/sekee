@@ -224,10 +224,21 @@
 /* The frame's second grid row. Always rendered (even with an empty list)
    so `.frame`'s 0fr -> 1fr transition has a track to animate; `overflow:
    hidden` clips the list out of view while collapsed instead of it
-   reflowing into view unclipped. */
+   reflowing into view unclipped.
+
+   That clip has to be rounded, not the square box it would be by default.
+   `.suggestions` below casts a large shadow, and a shadow is painted
+   everywhere outside its caster's border box — including the little wedge
+   between its own rounded corner and the square corner of the box clipping
+   it. Left square, that wedge reads as a hard right-angled notch of shadow
+   sitting inside `.frame`'s rounded corner, since the row's bottom corners
+   are exactly where the frame curves away. The radius is the frame's own
+   bottom radius minus the distance in to this row (its padding and border),
+   which is what keeps the two curves concentric. */
 .suggestionsRow {
   overflow: hidden;
   min-height: 0;
+  border-radius: 0 0 calc(var(--radius-lg) - var(--space-2) - 1px) calc(var(--radius-lg) - var(--space-2) - 1px);
 }
 
 .suggestions {
