@@ -22,10 +22,16 @@
  * replaced it. Non-modal drops the underlay — but React Aria also treats
  * `isNonModal` as "don't dismiss on outside interaction either" (see
  * `usePopover`'s `isDismissable: !isNonModal`), so outside-click-to-close is
- * reimplemented by hand below via a `pointerdown` listener.
+ * wired up separately below via `useInteractOutside` — the same primitive
+ * `useOverlay` itself would otherwise use for this, imported directly from
+ * `react-aria` rather than reimplemented, since it already accounts for
+ * cross-browser pointer/mouse/touch event differences that a hand-rolled
+ * listener does not (an earlier hand-rolled `pointerdown` version of this
+ * worked in Chromium but silently failed in Firefox).
  */
 
-import { useEffect, useRef } from 'react';
+import { useRef } from 'react';
+import { useInteractOutside } from 'react-aria';
 import { Menu, MenuTrigger, Popover } from 'react-aria-components';
 import styles from './ContextMenu.module.css';
 
@@ -42,21 +48,14 @@ export function ContextMenu({ x, y, isOpen, onOpenChange, onAction, children }) 
   const anchorRef = useRef(null);
   const popoverRef = useRef(null);
 
-  // Outside-click-to-close, reimplemented by hand — see the file header
-  // comment on why `isNonModal` leaves React Aria's own version disabled.
-  // `pointerdown` (not `click`) so this fires before a right-click's own
-  // `contextmenu` event on another tile, matching how the disabled built-in
-  // behavior would have timed it.
-  useEffect(() => {
-    if (!isOpen) return undefined;
-
-    function handlePointerDown(event) {
-      if (!popoverRef.current?.contains(event.target)) onOpenChange(false);
-    }
-
-    document.addEventListener('pointerdown', handlePointerDown, true);
-    return () => document.removeEventListener('pointerdown', handlePointerDown, true);
-  }, [isOpen, onOpenChange]);
+  // Outside-click-to-close — see the file header comment on why `isNonModal`
+  // leaves React Aria's own version of this disabled, and why it's wired up
+  // through this hook rather than a hand-rolled listener.
+  useInteractOutside({
+    ref: popoverRef,
+    isDisabled: !isOpen,
+    onInteractOutside: () => onOpenChange(false),
+  });
 
   return (
     <MenuTrigger isOpen={isOpen} onOpenChange={onOpenChange}>
