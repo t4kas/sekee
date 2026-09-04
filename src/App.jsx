@@ -7,15 +7,17 @@
  *
  * Layout, from back to front:
  *   Background   fixed, full-bleed photo + scrim + photographer credit
- *   .content     the centred column: weather widget, search bar, then bookmarks
+ *   .content     the centred column: weather widget, search bar, group tabs,
+ *                then the active group's bookmarks
  *   overlays     settings modal (top-right), dialogs (centred)
  */
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Button as AriaButton } from 'react-aria-components';
 import { Background } from './components/Background/Background.jsx';
 import { WeatherWidget } from './components/WeatherWidget/WeatherWidget.jsx';
 import { SearchBar } from './components/SearchBar/SearchBar.jsx';
+import { GroupTabs } from './components/BookmarkGrid/GroupTabs.jsx';
 import { BookmarkGrid } from './components/BookmarkGrid/BookmarkGrid.jsx';
 import { BookmarkDialog } from './components/BookmarkDialog/BookmarkDialog.jsx';
 import { ConfirmDialog } from './components/BookmarkDialog/ConfirmDialog.jsx';
@@ -25,6 +27,7 @@ import { AuthDialog } from './components/Account/AuthDialog.jsx';
 import { SettingsIcon } from './components/ui/icons.jsx';
 import { useAuth } from './hooks/useAuth.js';
 import { useBookmarks } from './hooks/useBookmarks.js';
+import { useBookmarkGroups } from './hooks/useBookmarkGroups.js';
 import { useFavorites } from './hooks/useFavorites.js';
 import { useSettings } from './hooks/useSettings.js';
 import { useBackground } from './hooks/useBackground.js';
@@ -43,12 +46,42 @@ export default function App() {
     addBookmark,
     editBookmark,
     removeBookmark,
+    reorderBookmarks,
+    reassignGroup,
+    recordOpened,
     refresh: refreshBookmarks,
   } = useBookmarks();
+  // Takes `reassignGroup` (from `useBookmarks` above) so deleting a group
+  // moves its bookmarks into another one before removing it — see
+  // useBookmarkGroups.js's header comment.
+  const {
+    groups,
+    isLoading: isLoadingGroups,
+    activeGroupId,
+    setActiveGroupId,
+    createGroup,
+    renameGroup,
+    deleteGroup,
+    reorderGroups,
+    refresh: refreshGroups,
+  } = useBookmarkGroups(reassignGroup);
   // Favorites need to exist before useBackground can decide whether to show
   // one — see useBackground.js.
   const { favorites, addFavorite, removeFavorite } = useFavorites(user?.id);
   const { photo, refresh: refreshBackground } = useBackground(settings, favorites);
+
+  /** The active group's bookmarks, in display order. `'recent'` mode derives
+   *  its order from `lastOpenedAt` (never-opened bookmarks sort last, via
+   *  the `?? 0` fallback) instead of the stored `order` field — see
+   *  `settingsService.js`'s `bookmarkSortMode` comment for why this is one
+   *  global setting rather than tracked per group. */
+  const visibleBookmarks = useMemo(() => {
+    const inActiveGroup = bookmarks.filter((bookmark) => bookmark.groupId === activeGroupId);
+    if (settings.bookmarkSortMode === 'recent') {
+      return [...inActiveGroup].sort((a, b) => (b.lastOpenedAt ?? 0) - (a.lastOpenedAt ?? 0));
+    }
+    return [...inActiveGroup].sort((a, b) => a.order - b.order);
+  }, [bookmarks, activeGroupId, settings.bookmarkSortMode]);
 
   // Which dialog is open, if any.
   //   null                       -> nothing open
@@ -86,6 +119,14 @@ export default function App() {
     refreshBackground();
   }
 
+  /** Passed to the Settings modal's Sync tab as its single "Sync now"
+   *  action — bookmarks and groups are two separate storage keys (and two
+   *  separate hooks), but one button re-reads both. */
+  function refreshBookmarksAndGroups() {
+    refreshBookmarks();
+    refreshGroups();
+  }
+
   return (
     <>
       <Background
@@ -113,12 +154,26 @@ export default function App() {
           <WeatherWidget location={settings.weatherLocation} units={settings.weatherUnits} />
           <SearchBar engineId={settings.engineId} />
 
+          {!isLoadingGroups && (
+            <GroupTabs
+              groups={groups}
+              activeGroupId={activeGroupId}
+              onSelect={setActiveGroupId}
+              onCreateGroup={createGroup}
+              onRenameGroup={renameGroup}
+              onDeleteGroup={deleteGroup}
+            />
+          )}
+
           <BookmarkGrid
-            bookmarks={bookmarks}
-            isLoading={isLoading}
+            bookmarks={visibleBookmarks}
+            isLoading={isLoading || isLoadingGroups}
+            sortMode={settings.bookmarkSortMode}
             onAdd={() => setDialog({ mode: 'add' })}
             onEdit={(bookmark) => setDialog({ mode: 'edit', bookmark })}
             onDelete={(bookmark) => setDialog({ mode: 'delete', bookmark })}
+            onOpen={recordOpened}
+            onReorder={reorderBookmarks}
           />
         </main>
       </div>
@@ -126,6 +181,8 @@ export default function App() {
       <BookmarkDialog
         isOpen={dialog?.mode === 'add' || dialog?.mode === 'edit'}
         bookmark={dialog?.mode === 'edit' ? dialog.bookmark : null}
+        groups={groups}
+        defaultGroupId={activeGroupId}
         onClose={closeDialog}
         onSubmit={handleSubmitBookmark}
       />
@@ -157,8 +214,10 @@ export default function App() {
         signIn={signIn}
         signUp={signUp}
         signOut={signOut}
-        refreshBookmarks={refreshBookmarks}
+        refreshBookmarks={refreshBookmarksAndGroups}
         refreshSettings={refreshSettings}
+        groups={groups}
+        onReorderGroups={reorderGroups}
       />
     </>
   );

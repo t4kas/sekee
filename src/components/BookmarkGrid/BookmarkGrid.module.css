@@ -53,6 +53,39 @@
   box-shadow: var(--focus-ring);
 }
 
+/* --- Drag and drop (custom sort mode only, see BookmarkGrid.jsx) ---------- */
+
+.grid[data-sort-mode='custom'] .item {
+  cursor: grab;
+}
+
+.item[data-dragging] {
+  opacity: 0.5;
+  cursor: grabbing;
+}
+
+/* Smoother and slightly slower than the base `.item` transition (which is
+   tuned for a quick hover lift) — a drop target should read as a deliberate
+   highlight, not a flicker. */
+.item[data-drop-target] {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+  transition: outline-color var(--duration-med) var(--ease);
+}
+
+/* React Aria inserts this as a real DOM node between whichever two tiles
+   the drag is currently hovering — see BookmarkGrid.jsx's file header,
+   point 3, for why that's a problem in a CSS grid. `position: absolute`
+   removes it from grid auto-placement entirely (per the CSS Grid spec,
+   absolutely-positioned items don't occupy a track), so it can never shift
+   the tiles around it — it's a hidden, zero-footprint marker only, with
+   `.item[data-drop-target]`'s outline above doing the actual signalling. */
+.dropIndicator {
+  position: absolute;
+  width: 0;
+  height: 0;
+}
+
 /* The anchor fills the tile, so the whole tile is a click target. */
 .link {
   display: flex;
@@ -101,43 +134,34 @@
   color: var(--fg-muted);
 }
 
-/* --- Row actions ---------------------------------------------------------- */
-
-.actions {
-  position: absolute;
-  top: 4px;
-  right: 4px;
-
+/* --- Drag preview ----------------------------------------------------------
+   Stands in for the browser's native drag image — see BookmarkGrid.jsx's
+   file header, point 3, for why: `backdrop-filter` doesn't reliably survive
+   the browser's own snapshot of the dragged element, so this is a plain,
+   solid-background copy instead. */
+/* Width/height come from an inline style matching the dragged tile's own
+   size (see BookmarkGrid.jsx) — not set here — so the cursor tracks the
+   same point on the preview that it was grabbing on the original tile. */
+.dragPreview {
   display: flex;
-  gap: 2px;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3);
 
-  /* Hidden by default. `visibility` (not `display: none`) so the buttons
-     stay in the accessibility tree and remain keyboard-reachable, and so
-     :focus-within can reveal them. */
-  visibility: hidden;
-  opacity: 0;
-  transition: opacity var(--duration-fast) var(--ease);
-}
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface-solid);
+  box-shadow: var(--shadow-lg);
 
-/* Reveal on hover, or whenever anything inside the tile has focus — which
-   covers a keyboard user tabbing into the buttons. */
-.item:hover .actions,
-.item:focus-within .actions {
-  visibility: visible;
-  opacity: 1;
-}
-
-.action {
-  width: 26px;
-  height: 26px;
-  border-color: transparent;
-  background: rgba(0, 0, 0, 0.4);
-  color: var(--fg-secondary);
-}
-
-.action[data-hovered] {
-  background: rgba(0, 0, 0, 0.65);
   color: var(--fg-primary);
+  font-size: var(--text-md);
+  font-weight: 500;
+}
+
+.dragPreviewTitle {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* --- Empty state & add button --------------------------------------------- */
@@ -172,22 +196,10 @@
   }
 
   /* Touch devices have no hover, so the actions would never appear. */
-  .actions {
-    visibility: visible;
-    opacity: 1;
-  }
-
-  /* Because they're permanently on show here, reserve room for them instead
-     of letting them sit on top of the title. The title still truncates with
-     an ellipsis if it's too long for what's left. */
-  .link {
-    padding-right: 60px;
-  }
 }
 
-/* On a phone, two columns minus the space reserved for the action buttons
-   leaves so little room that most titles truncate to a few characters. One
-   column per row is far more readable. */
+/* On a phone, two columns leaves so little room that most titles truncate to
+   a few characters. One column per row is far more readable. */
 @media (max-width: 460px) {
   .grid {
     grid-template-columns: 1fr;

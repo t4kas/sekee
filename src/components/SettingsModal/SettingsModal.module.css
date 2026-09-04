@@ -260,6 +260,171 @@
   background: var(--accent);
 }
 
+/* --- Collapsible info card (e.g. Sync's "What syncs") ----------------------- */
+
+.card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.cardHeading {
+  margin: 0;
+}
+
+.cardTrigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  width: 100%;
+
+  padding: var(--space-3) var(--space-4);
+  border: none;
+
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--fg-primary);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+
+  transition: background var(--duration-fast) var(--ease);
+}
+
+.cardTrigger[data-hovered] {
+  background: var(--surface-hover);
+}
+
+.cardTrigger[data-focus-visible] {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.cardChevron {
+  flex-shrink: 0;
+  color: var(--fg-secondary);
+  transition: transform var(--duration-fast) var(--ease);
+}
+
+.card[data-expanded] .cardChevron {
+  transform: rotate(180deg);
+}
+
+.cardPanel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+
+  padding: 0 var(--space-4) var(--space-4);
+
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  color: var(--fg-secondary);
+}
+
+.cardPanel p {
+  margin: 0;
+}
+
+.cardItemList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.cardItem {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.cardItem svg {
+  flex-shrink: 0;
+  color: var(--fg-primary);
+}
+
+/* --- Bookmark group order (BookmarksTab.jsx) -------------------------------- */
+
+.groupOrderLabel {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--fg-primary);
+}
+
+.groupOrderList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.groupOrderRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.groupOrderName {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+
+  font-size: var(--text-sm);
+  color: var(--fg-primary);
+}
+
+.groupOrderButtons {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.reorderButton {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--fg-secondary);
+  background: transparent;
+  cursor: pointer;
+
+  transition:
+    background var(--duration-fast) var(--ease),
+    color var(--duration-fast) var(--ease);
+}
+
+.reorderButton[data-hovered] {
+  color: var(--fg-primary);
+  background: var(--surface-hover);
+}
+
+.reorderButton[data-focus-visible] {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.reorderButton[data-disabled] {
+  color: var(--fg-muted);
+  opacity: 0.4;
+  cursor: default;
+}
+
+.reorderIconUp {
+  transform: rotate(180deg);
+}
+
 @media (max-width: 560px) {
   .modal {
     height: 100%;

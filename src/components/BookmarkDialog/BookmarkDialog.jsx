@@ -18,6 +18,7 @@
 import { useEffect, useState } from 'react';
 import { Dialog, Form, Heading, Modal, ModalOverlay } from 'react-aria-components';
 import { Button } from '../ui/Button.jsx';
+import { Select } from '../ui/Select.jsx';
 import { TextField } from '../ui/TextField.jsx';
 import styles from './BookmarkDialog.module.css';
 
@@ -25,14 +26,17 @@ import styles from './BookmarkDialog.module.css';
  * @param {object} props
  * @param {boolean} props.isOpen
  * @param {object|null} props.bookmark  the bookmark being edited, or null to add
+ * @param {{id: string, name: string}[]} props.groups
+ * @param {string|null} props.defaultGroupId  preselected when adding — the currently active tab
  * @param {() => void} props.onClose
- * @param {(values: {title: string, url: string}) => Promise<void>} props.onSubmit
+ * @param {(values: {title: string, url: string, groupId: string}) => Promise<void>} props.onSubmit
  */
-export function BookmarkDialog({ isOpen, bookmark, onClose, onSubmit }) {
+export function BookmarkDialog({ isOpen, bookmark, groups, defaultGroupId, onClose, onSubmit }) {
   const isEditing = Boolean(bookmark);
 
   const [title, setTitle] = useState('');
   const [url, setUrl] = useState('');
+  const [groupId, setGroupId] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
@@ -42,8 +46,9 @@ export function BookmarkDialog({ isOpen, bookmark, onClose, onSubmit }) {
     if (!isOpen) return;
     setTitle(bookmark?.title ?? '');
     setUrl(bookmark?.url ?? '');
+    setGroupId(bookmark?.groupId ?? defaultGroupId ?? '');
     setErrorMessage('');
-  }, [isOpen, bookmark]);
+  }, [isOpen, bookmark, defaultGroupId]);
 
   async function handleSubmit(event) {
     // React Aria's Form still fires a normal submit event, so we stop the
@@ -53,7 +58,7 @@ export function BookmarkDialog({ isOpen, bookmark, onClose, onSubmit }) {
     setIsSaving(true);
 
     try {
-      await onSubmit({ title, url });
+      await onSubmit({ title, url, groupId });
       onClose();
     } catch (error) {
       // The service throws for things like an unparseable URL. Show its
@@ -110,6 +115,8 @@ export function BookmarkDialog({ isOpen, bookmark, onClose, onSubmit }) {
               errorMessage={errorMessage}
               autoFocus={!isEditing}
             />
+
+            <Select label="Group" items={groups} selectedKey={groupId} onSelectionChange={setGroupId} />
 
             <div className={styles.footer}>
               <Button variant="ghost" onPress={onClose}>

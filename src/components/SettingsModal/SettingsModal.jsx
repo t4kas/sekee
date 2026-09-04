@@ -4,9 +4,9 @@
  * The gear button in the header opens this: a big modal with a sidebar of
  * category tabs on the left and that tab's controls on the right — replaces
  * the old small `SettingsPopover`. Built for exactly the tabs it has today
- * (Account, Preferences, Personalisation, Sync, Weather); adding another
- * later is a one-line addition to the `<Tab>`/`<TabPanel>` pairs below, not
- * a redesign.
+ * (Account, Preferences, Personalisation, Bookmarks, Sync, Weather); adding
+ * another later is a one-line addition to the `<Tab>`/`<TabPanel>` pairs
+ * below, not a redesign.
  *
  * Reuses `BookmarkDialog.module.css`'s `.overlay` for the dimmed/blurred
  * backdrop — every modal in this app shares that — but defines its own
@@ -38,11 +38,12 @@ import {
   TabPanel,
   Tabs,
 } from 'react-aria-components';
-import { CameraIcon, CloseIcon, CloudIcon, SlidersIcon, SunIcon, UserIcon } from '../ui/icons.jsx';
+import { BookmarkIcon, CameraIcon, CloseIcon, CloudIcon, SlidersIcon, SunIcon, UserIcon } from '../ui/icons.jsx';
 import { AuthDialog } from '../Account/AuthDialog.jsx';
 import { AccountTab } from './AccountTab.jsx';
 import { PreferencesTab } from './PreferencesTab.jsx';
 import { PersonalisationTab } from './PersonalisationTab.jsx';
+import { BookmarksTab } from './BookmarksTab.jsx';
 import { SyncTab } from './SyncTab.jsx';
 import { WeatherTab } from './WeatherTab.jsx';
 import dialogStyles from '../BookmarkDialog/BookmarkDialog.module.css';
@@ -63,6 +64,8 @@ import styles from './SettingsModal.module.css';
  * @param {() => Promise<void>} props.signOut
  * @param {() => void} props.refreshBookmarks
  * @param {() => void} props.refreshSettings
+ * @param {{id: string, name: string}[]} props.groups
+ * @param {(orderedIds: string[]) => void} props.onReorderGroups
  */
 export function SettingsModal({
   isOpen,
@@ -78,6 +81,8 @@ export function SettingsModal({
   signOut,
   refreshBookmarks,
   refreshSettings,
+  groups,
+  onReorderGroups,
 }) {
   const [activeTab, setActiveTab] = useState('account');
   // Separate from `isOpen` above, same reason `App.jsx` keeps its own
@@ -120,6 +125,10 @@ export function SettingsModal({
                   <CameraIcon size={16} />
                   Personalisation
                 </Tab>
+                <Tab id="bookmarks" className={styles.tabButton}>
+                  <BookmarkIcon size={16} />
+                  Bookmarks
+                </Tab>
                 <Tab id="sync" className={styles.tabButton}>
                   <CloudIcon size={16} />
                   Sync
@@ -146,6 +155,15 @@ export function SettingsModal({
                   user={user}
                   favorites={favorites}
                   removeFavorite={removeFavorite}
+                />
+              </TabPanel>
+
+              <TabPanel id="bookmarks" className={styles.content}>
+                <BookmarksTab
+                  settings={settings}
+                  onSettingsChange={onSettingsChange}
+                  groups={groups}
+                  onReorderGroups={onReorderGroups}
                 />
               </TabPanel>
 

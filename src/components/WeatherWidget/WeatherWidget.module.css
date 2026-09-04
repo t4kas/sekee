@@ -1,6 +1,7 @@
-/* A glass pill sized to its content (not the full search-bar width), the
-   same surface treatment as SearchBar's `.bar` but standalone rather than
-   holding interactive controls. */
+/* The glass chrome — border/background/blur/shadow/radius — lives here so it
+   still applies to the plain loading/error `<div>`s, which never get
+   wrapped in `.widget` (see WeatherWidget.jsx). `.pillButton` below strips
+   this back off for the "ready" state, where `.widget` draws it instead. */
 .pill {
   display: flex;
   align-items: center;
@@ -58,6 +59,153 @@
   text-overflow: ellipsis;
 }
 
+/* --- The expandable card ("ready" state only) ------------------------------ */
+
+/* Collapsed, this is sized to its content exactly like the plain `.pill`
+   (`width: fit-content`), so there's no visual difference from before this
+   was clickable. Expanded, it fills the content column and its corners
+   relax from a full pill to a rounded rect — see the file header comment
+   in WeatherWidget.jsx for why, and SearchBar.module.css's `.frame` for the
+   identical trick applied to the search dropdown. */
+.widget {
+  display: grid;
+  grid-template-rows: auto 0fr;
+  width: fit-content;
+  max-width: 100%;
+
+  border: 1px solid var(--border);
+  border-radius: 25px;
+  background: var(--surface);
+  backdrop-filter: var(--blur);
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+
+  transition:
+    grid-template-rows var(--duration-med) var(--ease),
+    border-radius var(--duration-med) var(--ease);
+}
+
+.widget[data-expanded] {
+  grid-template-rows: auto 1fr;
+  width: 100%;
+  border-radius: 25px 25px var(--radius-lg) var(--radius-lg);
+}
+
+/* The button fills `.widget`'s own chrome, so its own border/background/
+   shadow/radius would just double up on top of the parent's. */
+.pillButton {
+  width: 100%;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+
+  transition: background var(--duration-fast) var(--ease);
+}
+
+.pillButton:hover {
+  background: var(--surface-hover);
+}
+
+/* Inset rather than the app's usual `var(--focus-ring)`: `.widget`'s own
+   `overflow: hidden` (needed to clip the collapsed card to its pill shape)
+   would otherwise clip an outside ring right off. */
+.pillButton:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+
+.chevron {
+  flex-shrink: 0;
+  margin-left: auto;
+  color: var(--fg-muted);
+  transition: transform var(--duration-fast) var(--ease);
+}
+
+.widget[data-expanded] .chevron {
+  transform: rotate(180deg);
+}
+
+/* --- Expanded content -------------------------------------------------- */
+
+.detailsRow {
+  overflow: hidden;
+}
+
+.details {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: 0 var(--space-4) var(--space-4);
+}
+
+.daySummary {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding-top: var(--space-3);
+  font-size: var(--text-sm);
+}
+
+.dayLabel {
+  font-weight: 600;
+  color: var(--fg-primary);
+}
+
+.dayRange {
+  color: var(--fg-secondary);
+}
+
+.hourlySection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.hourlyLabel {
+  font-size: var(--text-xs);
+  color: var(--fg-muted);
+}
+
+.hourlyList {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: var(--space-2);
+}
+
+.hourlyItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+
+  padding: var(--space-2) var(--space-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-hover);
+}
+
+.hourlyIcon {
+  color: var(--fg-primary);
+}
+
+.hourlyTime {
+  font-size: var(--text-xs);
+  color: var(--fg-muted);
+}
+
+.hourlyTemp {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--fg-primary);
+}
+
 @media (max-width: 560px) {
   .pill {
     font-size: var(--text-xs);
@@ -65,5 +213,9 @@
 
   .temperature {
     font-size: var(--text-sm);
+  }
+
+  .hourlyList {
+    grid-template-columns: repeat(3, 1fr);
   }
 }

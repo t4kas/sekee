@@ -42,9 +42,28 @@ const ClearIcon = (props) => (
   </Svg>
 );
 
+/** A crescent traced as one outline (a large circle with a smaller one
+ *  overlapping its edge) rather than two overlapping shapes — simpler than
+ *  faking it with fills, and consistent with every other icon here being a
+ *  single stroked outline. */
+const ClearNightIcon = (props) => (
+  <Svg {...props}>
+    <path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5Z" />
+  </Svg>
+);
+
 const CloudyIcon = (props) => (
   <Svg {...props}>
     <circle cx="7.5" cy="7.5" r="2.6" />
+    <CloudShape />
+  </Svg>
+);
+
+/** Same composition as `CloudyIcon`, with the small sun swapped for a small
+ *  moon — the same crescent as `ClearNightIcon`, scaled down. */
+const CloudyNightIcon = (props) => (
+  <Svg {...props}>
+    <path d="M9.7 5.3a3 3 0 1 0 .3 5.6 3.6 3.6 0 0 1-.3-5.6Z" />
     <CloudShape />
   </Svg>
 );
@@ -94,7 +113,9 @@ const ThunderstormIcon = (props) => (
 /** Keyed to match `weatherService.getWeatherCondition`'s `icon` field. */
 export const WEATHER_ICONS = {
   clear: ClearIcon,
+  'clear-night': ClearNightIcon,
   cloudy: CloudyIcon,
+  'cloudy-night': CloudyNightIcon,
   overcast: OvercastIcon,
   fog: FogIcon,
   drizzle: DrizzleIcon,

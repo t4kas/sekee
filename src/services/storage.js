@@ -144,6 +144,7 @@ export const storage = {
 /** Keys we store, gathered in one place so they're easy to audit. */
 export const StorageKeys = {
   bookmarks: 'bookmarks',
+  bookmarkGroups: 'bookmark-groups',
   settings: 'settings',
   photoCache: 'photo-cache',
   favorites: 'favorites',
