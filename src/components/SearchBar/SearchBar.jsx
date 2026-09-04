@@ -157,21 +157,31 @@ export function SearchBar({ engineId }) {
           https://reactbits.dev/components/border-glow) wraps `.frame` —
           `focusActive` is what makes it appear specifically while the
           search bar is focused, per that component's own file header.
-          `backgroundColor="transparent"` + `.glowWrap`'s overrides in
-          SearchBar.module.css strip BorderGlow's own idle-state chrome
-          (a border and ambient shadow by default), so only the glow itself
-          shows — `.frame` already owns this control's actual idle/focused
-          look. */}
+          `.glowWrap`'s overrides in SearchBar.module.css strip BorderGlow's
+          own idle-state chrome (a border and ambient shadow by default), so
+          only the glow itself shows — `.frame` already owns this control's
+          actual idle/focused look.
+
+          `backgroundColor` is a real near-opaque dark, not transparent, and
+          matters more than it looks like it should: BorderGlow's border
+          layer reads as a *thin ring* only because its own background is
+          painted solidly over the interior first, punching the gradient
+          back to just the strip between that fill and the card's actual
+          edge (see BorderGlow.css's `::before`) — `.glowWrap`'s added
+          padding is what makes that strip wide enough to see. Transparent
+          here removes the punch-out entirely, so the gradient fills the
+          *whole* card instead of just its edge — a wash of color behind
+          `.frame`, not a glowing line around it. */}
       <BorderGlow
         className={styles.glowWrap}
         focusActive={isFocused}
-        backgroundColor="transparent"
+        backgroundColor="rgba(18, 18, 24, 0.9)"
         borderRadius={25}
-        glowRadius={16}
-        glowIntensity={0.9}
+        glowRadius={14}
+        glowIntensity={0.85}
         edgeSensitivity={20}
-        coneSpread={14}
-        fillOpacity={0.2}
+        coneSpread={12}
+        fillOpacity={0.12}
         glowColor={GLOW_COLOR}
         colors={GLOW_MESH_COLORS}
       >

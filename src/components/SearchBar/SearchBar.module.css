@@ -10,9 +10,13 @@
    paints a faint border + ambient shadow (its idle-state look, by vendor
    design) at equal specificity to this class — this app's search bar has
    no idle-state chrome at all until focused, only the glow itself should
-   ever show, so these four overrides need to win regardless of stylesheet
-   import order. */
+   ever show, so these overrides need to win regardless of stylesheet import
+   order. `padding` is the exception: not overriding anything (the vendor
+   default is 0), it's what gives the glow ring somewhere to actually be —
+   see SearchBar.jsx's comment on `backgroundColor` for why the ring needs a
+   real gap between `.border-glow-card`'s own edge and `.frame`'s. */
 .glowWrap {
+  padding: 3px;
   border-radius: 25px !important;
   border-color: transparent !important;
   box-shadow: none !important;

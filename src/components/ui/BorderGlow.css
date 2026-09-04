@@ -55,9 +55,16 @@
   z-index: -1;
 }
 
-.border-glow-card:not(:hover):not(.sweep-active)::before,
-.border-glow-card:not(:hover):not(.sweep-active)::after,
-.border-glow-card:not(:hover):not(.sweep-active) > .edge-light {
+/* DEVIATION FROM VENDOR: the original also keys visibility off `:hover`
+   (`:not(:hover):not(.sweep-active)`), so the glow follows the pointer on
+   any hover, focused or not. This app only ever wants it while the search
+   bar is actually focused (`focusActive` in BorderGlow.jsx, which toggles
+   `.sweep-active`) — hovering an unfocused search bar should look exactly
+   like it always has, no effects — so `:hover` is dropped from the
+   condition here. */
+.border-glow-card:not(.sweep-active)::before,
+.border-glow-card:not(.sweep-active)::after,
+.border-glow-card:not(.sweep-active) > .edge-light {
   opacity: 0;
   transition: opacity 0.75s ease-in-out;
 }

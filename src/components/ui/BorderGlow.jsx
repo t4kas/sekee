@@ -19,7 +19,13 @@
  * true, loops `--cursor-angle` continuously (reusing the vendor's own
  * `animateValue`/easing helpers, not a different mechanism) for as long as
  * it stays true, and fades back out on becoming false — see
- * `useFocusSweep` below. Everything else is unmodified.
+ * `useFocusSweep` below.
+ *
+ * BorderGlow.css has one matching deviation: its visibility rule normally
+ * also keys off `:hover`, so hovering an unfocused card shows the glow too.
+ * That's dropped there — see its own comment — since this app never wants
+ * any effect while unfocused, hover included. Everything else, in both
+ * files, is unmodified.
  */
 import { useRef, useCallback, useEffect } from 'react';
 import './BorderGlow.css';
