@@ -27,9 +27,13 @@
  * that would immediately go stale, `measure` reads the child's own computed
  * corner radii (all four, independently) and box size on every
  * ResizeObserver tick, and the ring is rebuilt from those — the ring hugs
- * whatever the child currently is, dropdown open or closed. Note this makes
- * the child's own box the thing being drawn around, so the wrapper must not
- * add padding or a transform of its own that the child doesn't share.
+ * whatever the child currently is, dropdown open or closed. The spotlight is
+ * scaled from that same measured height (see `spotlightRadius` below), which
+ * is what makes the glow tighter on the collapsed bar and wider once the
+ * suggestions open without either size being configured separately. Note
+ * this all makes the child's own box the thing being drawn around, so the
+ * wrapper must not add padding or a transform of its own that the child
+ * doesn't share.
  *
  * PROXIMITY, NOT "EDGE SENSITIVITY": the vendored version measured how close
  * the pointer was to the card's own edge, so it never reacted until the
@@ -141,10 +145,10 @@ const SearchGlow = ({
   children,
   className = '',
   focusActive = false,
-  ringWidth = 1.5,
-  glowWidth = 9,
-  blurStdDeviation = 3.5,
-  spotlightRadius = 90,
+  ringWidth = 2.5,
+  glowWidth = 13,
+  blurStdDeviation = 4,
+  spotlightRatio = 0.52,
   proximityRange = 90,
   introDuration = 1500,
   colors = ['#7cc0ff', '#93c5fd', '#38bdf8'],
@@ -316,6 +320,26 @@ const SearchGlow = ({
   const { width, height } = size;
   const outline = roundedRectPath(width, height, radii, ringWidth / 2);
   const clipRadius = radii.map((r) => `${r}px`).join(' ');
+
+  // The spotlight is sized from the box's own height rather than being a
+  // fixed number of pixels, which does two jobs at once.
+  //
+  // It keeps the glow off both long edges at the same time. Collapsed, this
+  // box is a ~68px-tall bar: a spotlight big enough to look generous also
+  // reaches the top *and* bottom edges from anywhere inside it, lighting
+  // both — the pointer is never more than ~34px from either. At a ratio just
+  // over half the height, the pointer's distances to the two edges (which
+  // always sum to the full height) can't both land inside the radius, so
+  // whichever edge it's nearer is the one that lights. Dead on the centre
+  // line the two are equal and both sit at the very tail of the gradient,
+  // which is why the ratio is only *just* over half: any more headroom and
+  // that tail is bright enough to read as a glow on both edges at once.
+  //
+  // And it widens the spread on its own once the suggestions open: the same
+  // ratio against a much taller box is a much larger spotlight, with no
+  // second value to pass in and no jump — the box's height animates, so the
+  // radius rides along with it.
+  const spotlightRadius = height * spotlightRatio;
 
   return (
     <div ref={wrapRef} className={className} style={{ position: 'relative' }}>
