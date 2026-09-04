@@ -51,12 +51,12 @@ import { useEffect, useId, useRef, useState } from 'react';
 function easeOutCubic(x) {
   return 1 - (1 - x) ** 3;
 }
-function easeInCubic(x) {
-  return x ** 3;
-}
 function easeInOutCubic(x) {
   return x < 0.5 ? 4 * x ** 3 : 1 - (-2 * x + 2) ** 3 / 2;
 }
+
+/** How much of the intro sweep is spent easing onto the pointer at the end. */
+const LANDING_FRACTION = 0.3;
 
 function animateValue({ start = 0, end = 1, duration = 1000, delay = 0, ease = easeOutCubic, onUpdate, onEnd }) {
   const t0 = performance.now() + delay;
@@ -138,6 +138,41 @@ function pointOnPerimeter(t, width, height) {
   distance -= height;
   if (distance < width) return [width - distance, height];
   return [0, height - (distance - width)];
+}
+
+/**
+ * The inverse of `pointOnPerimeter`: which `t` sits nearest (`x`, `y`),
+ * projecting onto whichever edge is closest if the point is inside the box.
+ * The intro sweep uses it to know how far it has to travel to finish beside
+ * the pointer.
+ */
+function perimeterT(x, y, width, height) {
+  const toEdge = Math.min(x, width - x, y, height - y);
+  let distance; // clockwise from the top-left corner, matching the walk above
+  if (toEdge === y) distance = x;
+  else if (toEdge === width - x) distance = width + y;
+  else if (toEdge === height - y) distance = width + height + (width - x);
+  else distance = 2 * width + height + (height - y);
+
+  const perimeter = 2 * (width + height);
+  return ((((distance - width / 2) % perimeter) + perimeter) % perimeter) / perimeter;
+}
+
+/**
+ * The pointer in the box's own coordinates: where the spotlight belongs
+ * (clamped inside the box) and how bright it should be (1 at or inside the
+ * box's edge, 0 once `range` px past it). Shared so that the intro sweep can
+ * aim at exactly the position and brightness the pointer would otherwise be
+ * holding, and hand over without a step.
+ */
+function pointerTarget(rect, clientX, clientY, range) {
+  const dx = Math.max(rect.left - clientX, clientX - rect.right, 0);
+  const dy = Math.max(rect.top - clientY, clientY - rect.bottom, 0);
+  return {
+    x: Math.max(0, Math.min(rect.width, clientX - rect.left)),
+    y: Math.max(0, Math.min(rect.height, clientY - rect.top)),
+    proximity: Math.max(0, Math.min(1, 1 - Math.hypot(dx, dy) / range)),
+  };
 }
 
 const SearchGlow = ({
@@ -252,17 +287,10 @@ const SearchGlow = ({
     const wrap = wrapRef.current;
     if (!wrap) return;
     const rect = wrap.getBoundingClientRect();
+    const target = pointerTarget(rect, clientX, clientY, proximityRange);
 
-    const dx = Math.max(rect.left - clientX, clientX - rect.right, 0);
-    const dy = Math.max(rect.top - clientY, clientY - rect.bottom, 0);
-    const proximity = Math.max(0, Math.min(1, 1 - Math.hypot(dx, dy) / proximityRange));
-    wrap.style.setProperty('--glow-proximity', proximity.toFixed(3));
-
-    moveSpotlight(
-      Math.max(0, Math.min(rect.width, clientX - rect.left)),
-      Math.max(0, Math.min(rect.height, clientY - rect.top)),
-      rect.height,
-    );
+    wrap.style.setProperty('--glow-proximity', target.proximity.toFixed(3));
+    moveSpotlight(target.x, target.y, rect.height);
   }
 
   // One listener for the life of the component: it records the pointer even
@@ -288,10 +316,10 @@ const SearchGlow = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [proximityRange]);
 
-  // The starting animation: on focus the spotlight travels once around the
-  // whole ring, brightening as it sets off and fading as it lands, then
-  // hands over to the pointer. Blur just clears `--glow-proximity` — the
-  // CSS transition below is what makes that a fade rather than a cut.
+  // The starting animation: on focus the spotlight travels the whole ring
+  // and comes to rest on the pointer, at the brightness the pointer itself
+  // would be holding. Blur just clears `--glow-proximity` — the CSS
+  // transition below is what makes that a fade rather than a cut.
   useEffect(() => {
     const wrap = wrapRef.current;
     if (!wrap) return undefined;
@@ -329,36 +357,55 @@ const SearchGlow = ({
 
     const width = wrap.offsetWidth;
     const height = wrap.offsetHeight;
-    const fadeDuration = 420;
+
+    /** Where the pointer would be holding the glow, recomputed per frame so
+     *  the sweep still lands correctly on a pointer that moved during it. */
+    const restingTarget = () => {
+      const last = lastPointRef.current;
+      if (!last) return null;
+      return pointerTarget(wrap.getBoundingClientRect(), last.x, last.y, proximityRange);
+    };
+
+    // A full lap, plus however much further it takes to end up beside the
+    // pointer. With no pointer to aim at, it's just the lap.
+    const opening = restingTarget();
+    const lap = 1 + (opening ? perimeterT(opening.x, opening.y, width, height) : 0);
 
     moveSpotlight(...pointOnPerimeter(0, width, height), height);
     animateValue({
       duration: introDuration,
       ease: easeInOutCubic,
-      onUpdate: (t) => {
-        if (!cancelled) moveSpotlight(...pointOnPerimeter(t, width, height), height);
-      },
-    });
-    animateValue({
-      duration: 280,
-      onUpdate: (v) => {
-        if (!cancelled) wrap.style.setProperty('--glow-proximity', v.toFixed(3));
-      },
-    });
-    animateValue({
-      delay: introDuration - fadeDuration,
-      duration: fadeDuration,
-      start: 1,
-      end: 0,
-      ease: easeInCubic,
-      onUpdate: (v) => {
-        if (!cancelled) wrap.style.setProperty('--glow-proximity', v.toFixed(3));
+      onUpdate: (progress) => {
+        if (cancelled) return;
+        const resting = restingTarget();
+        const [x, y] = pointOnPerimeter(progress * lap, width, height);
+
+        // Over the last stretch the spotlight leaves the edge it's been
+        // riding and eases onto the pointer itself, while the brightness
+        // eases to whatever the pointer's distance calls for. Both arrive
+        // exactly on those values, which is what makes the hand-off to
+        // `settle` invisible: the sweep no longer fades out and then pops
+        // back on wherever the cursor happens to be. A cursor far from the
+        // box just means it lands at 0 — a fade-out, not a flash.
+        const landing = easeOutCubic(Math.min(Math.max((progress - (1 - LANDING_FRACTION)) / LANDING_FRACTION, 0), 1));
+        const brightness = Math.min(progress / 0.18, 1);
+        const settled = resting ? resting.proximity : 0;
+
+        moveSpotlight(
+          resting ? x + (resting.x - x) * landing : x,
+          resting ? y + (resting.y - y) * landing : y,
+          height,
+        );
+        wrap.style.setProperty(
+          '--glow-proximity',
+          (brightness * (1 - landing) + settled * landing).toFixed(3),
+        );
       },
       onEnd: settle,
     });
 
     return cancel;
-  }, [focusActive, introDuration]);
+  }, [focusActive, introDuration, proximityRange]);
 
   const { width, height } = size;
   const outline = roundedRectPath(width, height, radii, ringWidth / 2);
