@@ -262,7 +262,25 @@ function useDragPreview(containerRef) {
     hoverTargetRef.current = null;
     const container = containerRef.current;
     if (!container) return;
-    for (const node of container.querySelectorAll('[data-key]')) node.style.transform = '';
+
+    // No transition here, unlike `paint()` above: at this exact moment
+    // `onReorder` has *just* handed the real drop off for persisting, which
+    // will (asynchronously) update `bookmarks` and let
+    // `useReorderAnimation`'s own FLIP take over properly. If this instead
+    // let `.item`'s own CSS transition animate the preview offset back to
+    // zero, that transition and the FLIP animation would both be fighting
+    // over the same tiles' `transform` at once — every previously-offset
+    // tile visibly flying off in the wrong direction before snapping back,
+    // which read as the whole grid "exploding" on drop.
+    for (const node of container.querySelectorAll('[data-key]')) {
+      node.style.transition = 'none';
+      node.style.transform = '';
+    }
+    // Restore next frame so `.item`'s own transition (e.g. the hover lift)
+    // isn't left permanently disabled by the inline override above.
+    requestAnimationFrame(() => {
+      for (const node of container.querySelectorAll('[data-key]')) node.style.transition = '';
+    });
   }, [containerRef]);
 
   const setHoverTarget = useCallback(
@@ -367,12 +385,23 @@ export function BookmarkGrid({ bookmarks, isLoading, sortMode, onEdit, onDelete,
     renderDropIndicator: (target) => <DropIndicator target={target} className={styles.dropIndicator} />,
     // See the file header's point 3: the browser's native drag image is an
     // unreliable snapshot of a `backdrop-filter` element, so this stands in
-    // a plain, filter-free copy instead.
+    // a plain, filter-free copy instead. Sized to match the actual tile
+    // being dragged (rather than left to size itself from content): React
+    // Aria positions the preview under the cursor by measuring how far
+    // across the *original* tile the user clicked and reproducing that same
+    // fraction across the preview's own bounds — if the preview came out a
+    // different size than the tile (its own padding/content sizing it
+    // independently), that fraction would land somewhere else, and the
+    // preview would visibly drift from the cursor as it's dragged.
     renderDragPreview: (items) => {
       const bookmark = bookmarks.find((candidate) => candidate.id === items[0]?.['text/plain']);
       if (!bookmark) return <div />;
+      const originalRect = gridRef.current?.querySelector(`[data-key="${CSS.escape(bookmark.id)}"]`)?.getBoundingClientRect();
       return (
-        <div className={styles.dragPreview}>
+        <div
+          className={styles.dragPreview}
+          style={originalRect ? { width: originalRect.width, height: originalRect.height } : undefined}
+        >
           <Favicon url={bookmark.url} title={bookmark.title} />
           <span className={styles.dragPreviewTitle}>{bookmark.title}</span>
         </div>
