@@ -2,34 +2,14 @@
   width: 100%;
 }
 
-/* Wraps `.frame` — see SearchBar.jsx for why: the glow itself is a vendored
-   `BorderGlow` (ui/BorderGlow.jsx, from
-   https://reactbits.dev/components/border-glow), which needs a real DOM
-   ancestor, not something `.frame`'s own CSS could grow on its own.
-   `!important`: BorderGlow.css's own `.border-glow-card` unconditionally
-   paints a faint border + ambient shadow (its idle-state look, by vendor
-   design) at equal specificity to this class — this app's search bar has
-   no idle-state chrome at all until focused, only the glow itself should
-   ever show, so these overrides need to win regardless of stylesheet import
-   order. `padding` is the exception: not overriding anything (the vendor
-   default is 0), it's just breathing room between the ring (confined to
-   `.border-glow-card`'s own 1px border, see BorderGlow.css's `::before`)
-   and `.frame`'s own edge.
-
-   `overflow: hidden` is also a deliberate override, not a vendor default
-   (the vendor sets `overflow: visible` so `.edge-light`'s bloom — which
-   extends *outside* the card via a negative `inset` — has room to render).
-   This app wants the opposite: the glow should read as light escaping from
-   inside the pill, not a halo cast onto the page around it, so it's clipped
-   to the pill's own rounded edge instead of being allowed to spill past
-   it. */
+/* Wraps `.frame` — the glow (ui/SearchGlow.jsx) needs a real DOM ancestor
+   sized to match `.frame`, not something `.frame`'s own CSS could grow on
+   its own. SearchGlow draws its own ring, blur, and clipping entirely
+   through its own inline styles/SVG, so unlike the vendored component this
+   replaced, there's no idle-state chrome or stray defaults to override here
+   — this class exists only for the layout hook. */
 .glowWrap {
-  padding: 3px;
-  border-radius: 25px !important;
-  border-color: transparent !important;
-  box-shadow: none !important;
-  background: transparent !important;
-  overflow: hidden !important;
+  display: block;
 }
 
 /* The focus frame. Sits around `.bar` and, once suggestions are open, around

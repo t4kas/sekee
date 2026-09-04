@@ -40,7 +40,7 @@ import { useEffect, useId, useState } from 'react';
 import { Button, Input, Label, SearchField } from 'react-aria-components';
 import { EngineLogo } from './EngineLogo.jsx';
 import { SearchIcon } from '../ui/icons.jsx';
-import BorderGlow from '../ui/BorderGlow.jsx';
+import SearchGlow from '../ui/SearchGlow.jsx';
 import { buildSearchUrl, getEngine } from '../../services/searchEngines.js';
 import { tryNormaliseUrl } from '../../services/bookmarksService.js';
 import { getFaviconUrl } from '../../services/favicons.js';
@@ -48,12 +48,10 @@ import { useSearchSuggestions } from '../../hooks/useSearchSuggestions.js';
 import { useLinkPreview } from '../../hooks/useLinkPreview.js';
 import styles from './SearchBar.module.css';
 
-// This app's accent, as "H S L" (BorderGlow's `glowColor` format) — see
-// tokens.css's `--accent: #7cc0ff`. Three related blues for `colors` (the
-// mesh-gradient border) rather than the vendor default's purple/pink/cyan,
-// so the glow reads as *this app's* accent rather than a generic demo.
-const GLOW_COLOR = '209 90 74';
-const GLOW_MESH_COLORS = ['#7cc0ff', '#93c5fd', '#38bdf8'];
+// This app's accent (tokens.css's `--accent: #7cc0ff`) plus two related
+// blues, so `SearchGlow`'s ring reads as *this app's* color rather than an
+// arbitrary rainbow.
+const GLOW_COLORS = ['#7cc0ff', '#93c5fd', '#38bdf8'];
 
 /** @param {{ engineId: string }} props */
 export function SearchBar({ engineId }) {
@@ -61,9 +59,8 @@ export function SearchBar({ engineId }) {
   const [displayValue, setDisplayValue] = useState('');
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const [isOpen, setIsOpen] = useState(false);
-  // Drives BorderGlow's `focusActive` — see ui/BorderGlow.jsx's file header
-  // for why "focused" needed its own trigger beyond what the component
-  // ships with.
+  // Drives SearchGlow's `focusActive` — the glow only ever shows while the
+  // search bar is actually focused, never on a plain unfocused hover.
   const [isFocused, setIsFocused] = useState(false);
   // What's actually on screen. This lags one step behind the hook's own
   // `suggestions` on the way *down* to empty: clearing the field zeroes
@@ -153,43 +150,13 @@ export function SearchBar({ engineId }) {
 
   return (
     <div className={styles.wrap}>
-      {/* The animated border glow (ui/BorderGlow.jsx, vendored from
-          https://reactbits.dev/components/border-glow) wraps `.frame` —
-          `focusActive` is what makes it appear specifically while the
-          search bar is focused, per that component's own file header.
-          `.glowWrap`'s overrides in SearchBar.module.css strip BorderGlow's
-          own idle-state chrome (a border and ambient shadow by default) and
-          clip the whole effect to the pill's own edge, so only a contained
-          glow shows — `.frame` already owns this control's actual
-          idle/focused look. `backgroundColor` barely matters here:
-          `.glowWrap` forces the card's own background transparent
-          regardless, so this only feeds `isLightColor`'s idle-state variant
-          (irrelevant once that idle state is stripped) — left as the vendor
-          default rather than removed, since the prop still exists.
-
-          `fillOpacity={0}` turns off `::after`, BorderGlow.css's "interior
-          tint near edges" layer, entirely — see that CSS block's own
-          comment for why (its masking doesn't reliably confine it, so any
-          nonzero value risks washing the whole interior rather than staying
-          near the edges). `glowRadius`/`glowIntensity` are still turned down
-          from the vendor's defaults: `.edge-light`'s bloom is a stack of
-          inset box-shadows blurred up to 50px, which reads as filling most
-          of a control this size at full strength even now that it's clipped
-          to the pill (`overflow: hidden` on `.glowWrap`) rather than
-          spilling past it. */}
-      <BorderGlow
-        className={styles.glowWrap}
-        focusActive={isFocused}
-        backgroundColor="transparent"
-        borderRadius={25}
-        glowRadius={6}
-        glowIntensity={0.5}
-        edgeSensitivity={20}
-        coneSpread={12}
-        fillOpacity={0}
-        glowColor={GLOW_COLOR}
-        colors={GLOW_MESH_COLORS}
-      >
+      {/* `SearchGlow` (ui/SearchGlow.jsx) draws a thin ring around `.frame`
+          that lights up near the pointer while `isFocused` — see that
+          file's header for why it's a bespoke SVG component rather than the
+          vendored CSS one it started as. `borderRadius={25}` matches
+          `.frame`'s own idle radius (see that class's own comment on 25px
+          vs. 999px) so the ring hugs its corners exactly. */}
+      <SearchGlow className={styles.glowWrap} focusActive={isFocused} borderRadius={25} colors={GLOW_COLORS}>
         {/* Faint focus frame around the pill and, once it grows to include the
             dropdown row below, around the suggestions too. Sizing comes from
             normal layout (no JS measurement) — `data-open` just switches the
@@ -307,7 +274,7 @@ export function SearchBar({ engineId }) {
             </ul>
           </div>
         </div>
-      </BorderGlow>
+      </SearchGlow>
     </div>
   );
 }
