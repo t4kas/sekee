@@ -217,6 +217,8 @@ export default function App() {
         refreshBookmarks={refreshBookmarksAndGroups}
         refreshSettings={refreshSettings}
         groups={groups}
+        onCreateGroup={createGroup}
+        onRenameGroup={renameGroup}
         onReorderGroups={reorderGroups}
       />
     </>

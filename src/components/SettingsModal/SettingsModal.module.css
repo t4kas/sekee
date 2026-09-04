@@ -425,6 +425,51 @@
   transform: rotate(180deg);
 }
 
+/* Fills the same `.groupOrderRow` shape as a name being edited — the modal
+   already sits on `--surface-solid`, not the photo directly, so (unlike
+   GroupTabs.module.css's `.tabInput`) there's no extra contrast concern
+   here; a plain transparent field reads fine against the row's own border. */
+.groupNameInput {
+  flex: 1;
+  min-width: 0;
+
+  border: none;
+  background: transparent;
+  font: inherit;
+  font-size: var(--text-sm);
+  color: var(--fg-primary);
+  outline: none;
+}
+
+.addGroupRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+
+  padding: var(--space-2) var(--space-3);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+
+  font-size: var(--text-sm);
+  color: var(--fg-secondary);
+  background: transparent;
+  cursor: pointer;
+
+  transition:
+    background var(--duration-fast) var(--ease),
+    color var(--duration-fast) var(--ease);
+}
+
+.addGroupRow[data-hovered] {
+  color: var(--fg-primary);
+  background: var(--surface-hover);
+}
+
+.addGroupRow[data-focus-visible] {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
 @media (max-width: 560px) {
   .modal {
     height: 100%;

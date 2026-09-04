@@ -65,6 +65,8 @@ import styles from './SettingsModal.module.css';
  * @param {() => void} props.refreshBookmarks
  * @param {() => void} props.refreshSettings
  * @param {{id: string, name: string}[]} props.groups
+ * @param {(name: string) => Promise<void>} props.onCreateGroup
+ * @param {(id: string, name: string) => Promise<void>} props.onRenameGroup
  * @param {(orderedIds: string[]) => void} props.onReorderGroups
  */
 export function SettingsModal({
@@ -82,6 +84,8 @@ export function SettingsModal({
   refreshBookmarks,
   refreshSettings,
   groups,
+  onCreateGroup,
+  onRenameGroup,
   onReorderGroups,
 }) {
   const [activeTab, setActiveTab] = useState('account');
@@ -163,6 +167,8 @@ export function SettingsModal({
                   settings={settings}
                   onSettingsChange={onSettingsChange}
                   groups={groups}
+                  onCreateGroup={onCreateGroup}
+                  onRenameGroup={onRenameGroup}
                   onReorderGroups={onReorderGroups}
                 />
               </TabPanel>

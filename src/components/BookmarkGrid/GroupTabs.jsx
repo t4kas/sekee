@@ -23,6 +23,12 @@
  * cancels rather than also submitting on blur, which would fire a second,
  * duplicate submit when Enter's own submit unmounts the input and the
  * browser synthesises a blur for the just-removed focused element).
+ *
+ * GROW/SHRINK: `AnimatedPillSlot` wraps each tab/input pair and, whenever
+ * its `morphKey` changes (entering or leaving edit mode, or the name itself
+ * changing on submit), FLIP-animates its own width from whatever it was to
+ * whatever it now measures — same Web Animations API technique as
+ * `BookmarkGrid.jsx`'s tile reorder, just on `width` instead of `transform`.
  */
 
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
@@ -34,6 +40,37 @@ import styles from './GroupTabs.module.css';
 
 const GAP_PX = 4; // must match .tabs's `gap` in GroupTabs.module.css
 const MORE_BUTTON_WIDTH_PX = 84; // rough budget reserved once overflow exists
+
+/** Animates its own width from its previous rendered width to its new one
+ *  whenever `morphKey` changes — see the file header's "GROW/SHRINK". */
+function AnimatedPillSlot({ morphKey, children }) {
+  const ref = useRef(null);
+  const prevWidthRef = useRef(null);
+
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+
+    const nextWidth = el.getBoundingClientRect().width;
+    const prevWidth = prevWidthRef.current;
+    if (prevWidth != null && Math.abs(prevWidth - nextWidth) > 0.5) {
+      const duration = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--duration-med'));
+      if (duration > 0) {
+        el.animate(
+          [{ width: `${prevWidth}px` }, { width: `${nextWidth}px` }],
+          { duration, easing: 'cubic-bezier(0.2, 0, 0.2, 1)' },
+        );
+      }
+    }
+    prevWidthRef.current = nextWidth;
+  }, [morphKey]);
+
+  return (
+    <span ref={ref} className={styles.pillSlot}>
+      {children}
+    </span>
+  );
+}
 
 /**
  * @param {object} props
@@ -121,30 +158,31 @@ export function GroupTabs({ groups, activeGroupId, onSelect, onCreateGroup, onRe
   return (
     <div className={styles.wrap}>
       <div className={styles.tabs} ref={containerRef} role="tablist" aria-label="Bookmark groups">
-        {visibleGroups.map((group) =>
-          editingId === group.id ? (
-            <TabNameInput key={group.id} value={draftName} onChange={setDraftName} onSubmit={submitEditing} onCancel={cancelEditing} />
-          ) : (
-            <button
-              key={group.id}
-              type="button"
-              role="tab"
-              aria-selected={group.id === activeGroupId}
-              className={styles.tab}
-              data-selected={group.id === activeGroupId || undefined}
-              onClick={() => onSelect(group.id)}
-              /* Capture phase — see BookmarkGrid.jsx's identical comment: a
-                 second right-click while a menu is already open must not let
-                 the browser's native menu flash up before ours replaces it. */
-              onContextMenuCapture={(event) => {
-                event.preventDefault();
-                setContextMenu({ groupId: group.id, x: event.clientX, y: event.clientY });
-              }}
-            >
-              {group.name}
-            </button>
-          ),
-        )}
+        {visibleGroups.map((group) => (
+          <AnimatedPillSlot key={group.id} morphKey={editingId === group.id ? 'editing' : group.name}>
+            {editingId === group.id ? (
+              <TabNameInput value={draftName} onChange={setDraftName} onSubmit={submitEditing} onCancel={cancelEditing} />
+            ) : (
+              <button
+                type="button"
+                role="tab"
+                aria-selected={group.id === activeGroupId}
+                className={styles.tab}
+                data-selected={group.id === activeGroupId || undefined}
+                onClick={() => onSelect(group.id)}
+                /* Capture phase — see BookmarkGrid.jsx's identical comment: a
+                   second right-click while a menu is already open must not let
+                   the browser's native menu flash up before ours replaces it. */
+                onContextMenuCapture={(event) => {
+                  event.preventDefault();
+                  setContextMenu({ groupId: group.id, x: event.clientX, y: event.clientY });
+                }}
+              >
+                {group.name}
+              </button>
+            )}
+          </AnimatedPillSlot>
+        ))}
 
         {overflowGroups.length > 0 && (
           <MenuTrigger>
@@ -168,19 +206,21 @@ export function GroupTabs({ groups, activeGroupId, onSelect, onCreateGroup, onRe
           </MenuTrigger>
         )}
 
-        {editingId === 'new' ? (
-          <TabNameInput
-            value={draftName}
-            onChange={setDraftName}
-            onSubmit={submitEditing}
-            onCancel={cancelEditing}
-            placeholder="Group name"
-          />
-        ) : (
-          <AriaButton className={styles.addTab} aria-label="Add group" onPress={startAdding}>
-            <PlusIcon size={14} />
-          </AriaButton>
-        )}
+        <AnimatedPillSlot morphKey={editingId === 'new' ? 'editing' : 'idle'}>
+          {editingId === 'new' ? (
+            <TabNameInput
+              value={draftName}
+              onChange={setDraftName}
+              onSubmit={submitEditing}
+              onCancel={cancelEditing}
+              placeholder="Group name"
+            />
+          ) : (
+            <AriaButton className={styles.addTab} aria-label="Add group" onPress={startAdding}>
+              <PlusIcon size={14} />
+            </AriaButton>
+          )}
+        </AnimatedPillSlot>
       </div>
 
       {/* Invisible clones used only to measure natural widths — see the

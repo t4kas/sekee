@@ -15,6 +15,18 @@
   white-space: nowrap;
 }
 
+/* Wraps each tab/input pair for GroupTabs.jsx's `AnimatedPillSlot` — its
+   width is what actually animates on add/rename, so `overflow: hidden`
+   clips the child mid-animation rather than letting it spill out while the
+   slot is still narrower than the child's own natural width. */
+.pillSlot {
+  display: inline-flex;
+  flex-shrink: 0;
+  overflow: hidden;
+  border-radius: var(--radius-pill);
+  vertical-align: middle;
+}
+
 .tab {
   flex-shrink: 0;
 
@@ -48,7 +60,12 @@
   border: 1px solid var(--border);
 }
 
-/* Inline rename/add input, sized to sit exactly where a `.tab` would. */
+/* Inline rename/add input, sized to sit exactly where a `.tab` would.
+   `--surface-solid` + `--blur` rather than the tab strip's usual `--surface`
+   — this sits directly on the photo background (unlike, say, Settings'
+   equivalent field, which sits on the already-solid modal), and `--surface`
+   is only ~12% white, too translucent for the input's own text to reliably
+   read against a bright or busy patch of photo. */
 .tabInput {
   flex-shrink: 0;
   width: 120px;
@@ -60,7 +77,8 @@
   font: inherit;
   font-size: var(--text-sm);
   color: var(--fg-primary);
-  background: var(--surface);
+  background: var(--surface-solid);
+  backdrop-filter: var(--blur);
 
   outline: none;
 }
