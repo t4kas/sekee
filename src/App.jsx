@@ -25,6 +25,7 @@ import { SettingsModal } from './components/SettingsModal/SettingsModal.jsx';
 import { AccountControl } from './components/Account/AccountControl.jsx';
 import { AuthDialog } from './components/Account/AuthDialog.jsx';
 import { SettingsIcon } from './components/ui/icons.jsx';
+import { Tooltip } from './components/ui/Tooltip.jsx';
 import { useAuth } from './hooks/useAuth.js';
 import { useBookmarks } from './hooks/useBookmarks.js';
 import { useBookmarkGroups } from './hooks/useBookmarkGroups.js';
@@ -32,6 +33,7 @@ import { useFavorites } from './hooks/useFavorites.js';
 import { useSettings } from './hooks/useSettings.js';
 import { useBackground } from './hooks/useBackground.js';
 import { clearPhotoCache } from './services/unsplashService.js';
+import { exportBookmarksToHtml, parseBookmarksHtml } from './services/bookmarkImportExport.js';
 import styles from './App.module.css';
 
 export default function App() {
@@ -127,6 +129,74 @@ export default function App() {
     refreshGroups();
   }
 
+  /** Builds and downloads a Netscape Bookmark File — see
+   *  `bookmarkImportExport.js`'s header for why that's the one format every
+   *  major browser both reads and writes. Lives here rather than in a
+   *  service or hook because triggering a browser download (a Blob URL + a
+   *  synthetic click) is a DOM action, the same boundary `storage.js` draws
+   *  around localStorage — components/App own browser APIs, services own
+   *  data. */
+  function handleExportBookmarks() {
+    const html = exportBookmarksToHtml(groups, bookmarks);
+    const blob = new Blob([html], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'bookmarks.html';
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
+  /**
+   * Reads an uploaded Netscape Bookmark File and adds everything in it.
+   * Needs both `groups` and `bookmarks` state together (matching a parsed
+   * folder to an existing group by name, or creating a new one; appending
+   * each bookmark into whichever group that resolved to), which is why this
+   * lives here rather than inside either individual hook — same reasoning as
+   * `refreshBookmarksAndGroups` above.
+   *
+   * One bookmark at a time, awaited in sequence rather than in parallel:
+   * `createBookmark` in `bookmarksService.js` reads the full list, appends,
+   * and writes it back, so concurrent calls would race and could silently
+   * drop entries. A bad URL fails `normaliseUrl` and is just skipped, not
+   * fatal to the rest of the import.
+   *
+   * @param {File} file
+   * @returns {Promise<{imported: number, skipped: number, groupsCreated: number}>}
+   */
+  async function handleImportBookmarks(file) {
+    const text = await file.text();
+    const entries = parseBookmarksHtml(text);
+
+    const groupIdByName = new Map(groups.map((group) => [group.name.toLowerCase(), group.id]));
+    let groupsCreated = 0;
+    let imported = 0;
+    let skipped = 0;
+
+    for (const entry of entries) {
+      let groupId = activeGroupId;
+      if (entry.folder) {
+        const key = entry.folder.toLowerCase();
+        groupId = groupIdByName.get(key);
+        if (!groupId) {
+          const updatedGroups = await createGroup(entry.folder);
+          groupId = updatedGroups[updatedGroups.length - 1].id;
+          groupIdByName.set(key, groupId);
+          groupsCreated++;
+        }
+      }
+
+      try {
+        await addBookmark({ title: entry.title, url: entry.url, groupId });
+        imported++;
+      } catch {
+        skipped++; // not a valid http(s) URL — see bookmarksService.js's normaliseUrl
+      }
+    }
+
+    return { imported, skipped, groupsCreated };
+  }
+
   return (
     <>
       <Background
@@ -141,13 +211,15 @@ export default function App() {
       <div className={styles.app}>
         <header className={styles.header}>
           <AccountControl user={user} signOut={signOut} onRequestSignIn={() => setIsAuthDialogOpen(true)} />
-          <AriaButton
-            className={styles.settingsTrigger}
-            aria-label="Settings"
-            onPress={() => setIsSettingsOpen(true)}
-          >
-            <SettingsIcon size={18} />
-          </AriaButton>
+          <Tooltip label="Settings" placement="left">
+            <AriaButton
+              className={styles.settingsTrigger}
+              aria-label="Settings"
+              onPress={() => setIsSettingsOpen(true)}
+            >
+              <SettingsIcon size={18} />
+            </AriaButton>
+          </Tooltip>
         </header>
 
         <main className={styles.content}>
@@ -220,6 +292,8 @@ export default function App() {
         onCreateGroup={createGroup}
         onRenameGroup={renameGroup}
         onReorderGroups={reorderGroups}
+        onExportBookmarks={handleExportBookmarks}
+        onImportBookmarks={handleImportBookmarks}
       />
     </>
   );

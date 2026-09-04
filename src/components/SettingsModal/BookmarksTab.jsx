@@ -26,8 +26,10 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { Button as AriaButton } from 'react-aria-components';
+import { Button } from '../ui/Button.jsx';
 import { Select } from '../ui/Select.jsx';
-import { CheckIcon, ChevronDownIcon, CloseIcon, EditIcon, PlusIcon } from '../ui/icons.jsx';
+import { Tooltip } from '../ui/Tooltip.jsx';
+import { CheckIcon, ChevronDownIcon, CloseIcon, DownloadIcon, EditIcon, PlusIcon, UploadIcon } from '../ui/icons.jsx';
 import styles from './SettingsModal.module.css';
 
 const SORT_MODES = [
@@ -55,12 +57,52 @@ function moveGroup(groups, id, direction) {
  * @param {(name: string) => Promise<void>} props.onCreateGroup
  * @param {(id: string, name: string) => Promise<void>} props.onRenameGroup
  * @param {(orderedIds: string[]) => void} props.onReorderGroups
+ * @param {() => void} props.onExportBookmarks
+ * @param {(file: File) => Promise<{imported: number, skipped: number, groupsCreated: number}>} props.onImportBookmarks
  */
-export function BookmarksTab({ settings, onSettingsChange, groups, onCreateGroup, onRenameGroup, onReorderGroups }) {
+export function BookmarksTab({
+  settings,
+  onSettingsChange,
+  groups,
+  onCreateGroup,
+  onRenameGroup,
+  onReorderGroups,
+  onExportBookmarks,
+  onImportBookmarks,
+}) {
   // 'new' while adding a group, a group id while renaming one, else null —
   // see the file header comment.
   const [editingId, setEditingId] = useState(null);
   const [draftName, setDraftName] = useState('');
+
+  const fileInputRef = useRef(null);
+  const [isImporting, setIsImporting] = useState(false);
+  // { kind: 'success', text } | { kind: 'error', text } | null
+  const [importStatus, setImportStatus] = useState(null);
+
+  async function handleFileSelected(event) {
+    const file = event.target.files?.[0];
+    event.target.value = ''; // lets picking the same file twice re-fire onChange
+    if (!file) return;
+
+    setIsImporting(true);
+    setImportStatus(null);
+    try {
+      const { imported, skipped, groupsCreated } = await onImportBookmarks(file);
+      const parts = [`Imported ${imported} bookmark${imported === 1 ? '' : 's'}`];
+      if (groupsCreated > 0) parts.push(`${groupsCreated} new group${groupsCreated === 1 ? '' : 's'}`);
+      if (skipped > 0) parts.push(`${skipped} skipped`);
+      setImportStatus({ kind: 'success', text: `${parts.join(', ')}.` });
+    } catch {
+      // Malformed/non-bookmark file, or the browser rejected reading it —
+      // `onImportBookmarks` itself already skips individual bad entries
+      // (bad URLs) rather than throwing, so getting here means the file as
+      // a whole couldn't be read.
+      setImportStatus({ kind: 'error', text: "Couldn't read that file — is it a browser bookmark export?" });
+    } finally {
+      setIsImporting(false);
+    }
+  }
 
   function startRename(group) {
     setEditingId(group.id);
@@ -112,29 +154,35 @@ export function BookmarksTab({ settings, onSettingsChange, groups, onCreateGroup
               <div key={group.id} className={styles.groupOrderRow}>
                 <span className={styles.groupOrderName}>{group.name}</span>
                 <div className={styles.groupOrderButtons}>
-                  <AriaButton
-                    className={styles.reorderButton}
-                    aria-label={`Rename ${group.name}`}
-                    onPress={() => startRename(group)}
-                  >
-                    <EditIcon size={14} />
-                  </AriaButton>
-                  <AriaButton
-                    className={styles.reorderButton}
-                    isDisabled={index === 0}
-                    aria-label={`Move ${group.name} up`}
-                    onPress={() => onReorderGroups(moveGroup(groups, group.id, -1))}
-                  >
-                    <ChevronDownIcon size={14} className={styles.reorderIconUp} />
-                  </AriaButton>
-                  <AriaButton
-                    className={styles.reorderButton}
-                    isDisabled={index === groups.length - 1}
-                    aria-label={`Move ${group.name} down`}
-                    onPress={() => onReorderGroups(moveGroup(groups, group.id, 1))}
-                  >
-                    <ChevronDownIcon size={14} />
-                  </AriaButton>
+                  <Tooltip label="Rename">
+                    <AriaButton
+                      className={styles.reorderButton}
+                      aria-label={`Rename ${group.name}`}
+                      onPress={() => startRename(group)}
+                    >
+                      <EditIcon size={14} />
+                    </AriaButton>
+                  </Tooltip>
+                  <Tooltip label="Move up">
+                    <AriaButton
+                      className={styles.reorderButton}
+                      isDisabled={index === 0}
+                      aria-label={`Move ${group.name} up`}
+                      onPress={() => onReorderGroups(moveGroup(groups, group.id, -1))}
+                    >
+                      <ChevronDownIcon size={14} className={styles.reorderIconUp} />
+                    </AriaButton>
+                  </Tooltip>
+                  <Tooltip label="Move down">
+                    <AriaButton
+                      className={styles.reorderButton}
+                      isDisabled={index === groups.length - 1}
+                      aria-label={`Move ${group.name} down`}
+                      onPress={() => onReorderGroups(moveGroup(groups, group.id, 1))}
+                    >
+                      <ChevronDownIcon size={14} />
+                    </AriaButton>
+                  </Tooltip>
                 </div>
               </div>
             ),
@@ -155,6 +203,36 @@ export function BookmarksTab({ settings, onSettingsChange, groups, onCreateGroup
             </AriaButton>
           )}
         </div>
+      </div>
+
+      <div>
+        <p className={styles.groupOrderLabel}>Import &amp; export</p>
+        <div className={styles.importExportRow}>
+          <Button onPress={onExportBookmarks}>
+            <DownloadIcon size={16} />
+            Export bookmarks
+          </Button>
+          <Button onPress={() => fileInputRef.current?.click()} isDisabled={isImporting}>
+            <UploadIcon size={16} />
+            {isImporting ? 'Importing…' : 'Import bookmarks'}
+          </Button>
+        </div>
+        {/* Netscape Bookmark File — the one format every major browser both
+            exports to and imports from, see bookmarkImportExport.js. */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".html,.htm,text/html"
+          className={styles.hiddenFileInput}
+          onChange={handleFileSelected}
+        />
+        <p className={styles.hint}>
+          Export downloads an HTML file any browser can import. Import reads one the same way —
+          folders become groups.
+        </p>
+        {importStatus && (
+          <p className={importStatus.kind === 'error' ? styles.hintError : styles.hint}>{importStatus.text}</p>
+        )}
       </div>
     </div>
   );
@@ -201,22 +279,26 @@ function GroupNameRow({ value, onChange, onSubmit, onCancel, placeholder }) {
             which would already have cancelled via `onBlur` above by the
             time a press handler ran. Prevent-defaulting the mousedown stops
             that blur from happening in the first place. */}
-        <AriaButton
-          className={styles.reorderButton}
-          aria-label="Confirm"
-          onMouseDown={(event) => event.preventDefault()}
-          onPress={onSubmit}
-        >
-          <CheckIcon size={14} />
-        </AriaButton>
-        <AriaButton
-          className={styles.reorderButton}
-          aria-label="Cancel"
-          onMouseDown={(event) => event.preventDefault()}
-          onPress={onCancel}
-        >
-          <CloseIcon size={14} />
-        </AriaButton>
+        <Tooltip label="Confirm">
+          <AriaButton
+            className={styles.reorderButton}
+            aria-label="Confirm"
+            onMouseDown={(event) => event.preventDefault()}
+            onPress={onSubmit}
+          >
+            <CheckIcon size={14} />
+          </AriaButton>
+        </Tooltip>
+        <Tooltip label="Cancel">
+          <AriaButton
+            className={styles.reorderButton}
+            aria-label="Cancel"
+            onMouseDown={(event) => event.preventDefault()}
+            onPress={onCancel}
+          >
+            <CloseIcon size={14} />
+          </AriaButton>
+        </Tooltip>
       </div>
     </div>
   );

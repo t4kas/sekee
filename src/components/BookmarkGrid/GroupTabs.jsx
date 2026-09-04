@@ -35,6 +35,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Button as AriaButton, Menu, MenuItem, MenuTrigger, Popover } from 'react-aria-components';
 import { ChevronDownIcon, EditIcon, PlusIcon, TrashIcon } from '../ui/icons.jsx';
 import { ContextMenu } from '../ui/ContextMenu.jsx';
+import { Tooltip } from '../ui/Tooltip.jsx';
 import contextMenuStyles from '../ui/ContextMenu.module.css';
 import styles from './GroupTabs.module.css';
 
@@ -216,9 +217,11 @@ export function GroupTabs({ groups, activeGroupId, onSelect, onCreateGroup, onRe
               placeholder="Group name"
             />
           ) : (
-            <AriaButton className={styles.addTab} aria-label="Add group" onPress={startAdding}>
-              <PlusIcon size={14} />
-            </AriaButton>
+            <Tooltip label="Add group">
+              <AriaButton className={styles.addTab} aria-label="Add group" onPress={startAdding}>
+                <PlusIcon size={14} />
+              </AriaButton>
+            </Tooltip>
           )}
         </AnimatedPillSlot>
       </div>

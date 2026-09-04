@@ -131,6 +131,20 @@ export const CheckIcon = (props) => (
   </Svg>
 );
 
+export const DownloadIcon = (props) => (
+  <Svg {...props}>
+    <path d="M12 3v12M7 10l5 5 5-5" />
+    <path d="M4 19.5h16" />
+  </Svg>
+);
+
+export const UploadIcon = (props) => (
+  <Svg {...props}>
+    <path d="M12 15V3M7 8l5-5 5 5" />
+    <path d="M4 19.5h16" />
+  </Svg>
+);
+
 export const CloudIcon = (props) => (
   <Svg {...props}>
     <path d="M7 18h10a4 4 0 0 0 .5-7.97A5.5 5.5 0 0 0 7.1 9.02 4 4 0 0 0 7 18Z" />

@@ -30,6 +30,7 @@ import {
   Separator,
 } from 'react-aria-components';
 import { UserIcon } from '../ui/icons.jsx';
+import { Tooltip } from '../ui/Tooltip.jsx';
 import { isSupabaseConfigured } from '../../services/supabaseClient.js';
 import styles from './AccountControl.module.css';
 
@@ -73,8 +74,10 @@ export function AccountControl({ user, signOut, onRequestSignIn }) {
   }
 
   return (
-    <AriaButton className={styles.avatar} aria-label="Sign in" onPress={onRequestSignIn}>
-      <UserIcon size={18} />
-    </AriaButton>
+    <Tooltip label="Sign in" placement="right">
+      <AriaButton className={styles.avatar} aria-label="Sign in" onPress={onRequestSignIn}>
+        <UserIcon size={18} />
+      </AriaButton>
+    </Tooltip>
   );
 }
