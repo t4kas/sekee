@@ -151,12 +151,14 @@ export function SearchBar({ engineId }) {
   return (
     <div className={styles.wrap}>
       {/* `SearchGlow` (ui/SearchGlow.jsx) draws a thin ring around `.frame`
-          that lights up near the pointer while `isFocused` — see that
-          file's header for why it's a bespoke SVG component rather than the
-          vendored CSS one it started as. `borderRadius={25}` matches
-          `.frame`'s own idle radius (see that class's own comment on 25px
-          vs. 999px) so the ring hugs its corners exactly. */}
-      <SearchGlow className={styles.glowWrap} focusActive={isFocused} borderRadius={25} colors={GLOW_COLORS}>
+          — the box that hugs the pill and, once suggestions are open, the
+          dropdown too — which lights up near the pointer while `isFocused`.
+          See that file's header for why it's a bespoke SVG component rather
+          than the vendored CSS one it started as, and why it takes no shape
+          props: it reads `.frame`'s own size and corner radii, so the ring
+          keeps hugging it through the open/close transition rather than
+          needing to be told the shape twice. */}
+      <SearchGlow className={styles.glowWrap} focusActive={isFocused} colors={GLOW_COLORS}>
         {/* Faint focus frame around the pill and, once it grows to include the
             dropdown row below, around the suggestions too. Sizing comes from
             normal layout (no JS measurement) — `data-open` just switches the

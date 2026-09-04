@@ -6,10 +6,22 @@
    sized to match `.frame`, not something `.frame`'s own CSS could grow on
    its own. SearchGlow draws its own ring, blur, and clipping entirely
    through its own inline styles/SVG, so unlike the vendored component this
-   replaced, there's no idle-state chrome or stray defaults to override here
-   — this class exists only for the layout hook. */
+   replaced, there's no idle-state chrome or stray defaults to override here.
+
+   The focused lift lives here rather than on `.frame` (where the rest of
+   the focused treatment still is) because SearchGlow positions its ring
+   against *this* box: a transform on `.frame` alone would slide the frame
+   out from under its own ring by those 3px, leaving the glow visibly
+   hanging below the box it's supposed to be hugging. Lifting the wrapper
+   moves both together. */
 .glowWrap {
   display: block;
+  transform: translateY(0);
+  transition: transform var(--duration-med) var(--ease);
+}
+
+.glowWrap:focus-within {
+  transform: translateY(-3px);
 }
 
 /* The focus frame. Sits around `.bar` and, once suggestions are open, around
@@ -38,27 +50,25 @@
   background: transparent;
   box-shadow: none;
   padding: 0;
-  transform: translateY(0);
 
   transition:
     padding var(--duration-med) var(--ease),
     background var(--duration-med) var(--ease),
     border-color var(--duration-med) var(--ease),
     box-shadow var(--duration-med) var(--ease),
-    transform var(--duration-med) var(--ease),
     border-radius var(--duration-med) var(--ease),
     grid-template-rows var(--duration-med) var(--ease);
 }
 
 /* Faint, translucent box — deliberately lighter than `.bar`'s own surface so
-   it reads as a halo around the control rather than a second pill. Lifting
-   it a few pixels (`translateY`) is the "pushed up" part of the brief. */
+   it reads as a halo around the control rather than a second pill. The
+   "pushed up" part of the brief is the matching lift on `.glowWrap` above,
+   which has to own the transform so the glow ring travels with it. */
 .frame:focus-within {
   padding: var(--space-2);
   background: color-mix(in srgb, var(--surface) 45%, transparent);
   border-color: color-mix(in srgb, var(--border-strong) 55%, transparent);
   box-shadow: var(--shadow-md);
-  transform: translateY(-3px);
 }
 
 
