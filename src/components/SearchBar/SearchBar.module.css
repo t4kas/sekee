@@ -12,9 +12,9 @@
    no idle-state chrome at all until focused, only the glow itself should
    ever show, so these overrides need to win regardless of stylesheet import
    order. `padding` is the exception: not overriding anything (the vendor
-   default is 0), it's what gives the glow ring somewhere to actually be —
-   see SearchBar.jsx's comment on `backgroundColor` for why the ring needs a
-   real gap between `.border-glow-card`'s own edge and `.frame`'s. */
+   default is 0), it's just breathing room between the ring (confined to
+   `.border-glow-card`'s own 1px border, see BorderGlow.css's `::before`)
+   and `.frame`'s own edge. */
 .glowWrap {
   padding: 3px;
   border-radius: 25px !important;

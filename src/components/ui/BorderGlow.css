@@ -55,26 +55,38 @@
   z-index: -1;
 }
 
-/* DEVIATION FROM VENDOR: the original also keys visibility off `:hover`
+/* DEVIATION FROM VENDOR: the original keys visibility off plain `:hover`
    (`:not(:hover):not(.sweep-active)`), so the glow follows the pointer on
-   any hover, focused or not. This app only ever wants it while the search
-   bar is actually focused (`focusActive` in BorderGlow.jsx, which toggles
-   `.sweep-active`) — hovering an unfocused search bar should look exactly
-   like it always has, no effects — so `:hover` is dropped from the
-   condition here. */
-.border-glow-card:not(.sweep-active)::before,
-.border-glow-card:not(.sweep-active)::after,
-.border-glow-card:not(.sweep-active) > .edge-light {
+   any hover, focused or not. This app only ever wants hover to matter while
+   the search bar is actually focused, so `:hover` is scoped to
+   `.card-focused` (added/removed by `useFocusSweep` in BorderGlow.jsx on
+   focus/blur) — hovering an unfocused search bar still shows nothing.
+   `.sweep-active` is the other, focus-independent trigger: it's what makes
+   the one-time intro sweep visible for its own duration, before the pointer
+   has necessarily moved at all. */
+.border-glow-card:not(.sweep-active):not(.card-focused:hover)::before,
+.border-glow-card:not(.sweep-active):not(.card-focused:hover)::after,
+.border-glow-card:not(.sweep-active):not(.card-focused:hover) > .edge-light {
   opacity: 0;
   transition: opacity 0.75s ease-in-out;
 }
 
-/* colored mesh-gradient border */
+/* colored mesh-gradient border
+   DEVIATION FROM VENDOR: the original paints an opaque `--card-bg` layer
+   clipped to `padding-box` underneath the gradients (clipped to `border-box`)
+   to visually "punch out" the interior, leaving only the border-width strip
+   showing gradient — relying on that fill being a real, opaque color. That
+   breaks here: this card sits behind `.frame` (SearchBar.module.css), which
+   is only translucent while focused, so whatever `--card-bg` paints bleeds
+   through it instead of staying hidden (see SearchBar.jsx's comment on
+   `backgroundColor`). Replaced with a geometric ring mask instead — three
+   mask layers (`border-box` minus `padding-box`, via `mask-composite:
+   exclude`, then intersected with the vendor's own angular cone) confine the
+   gradient to the ring the same way, but by shape rather than by color, so
+   it stays confined no matter what's behind or in front of the card. */
 .border-glow-card::before {
   border: 1px solid transparent;
   background:
-    linear-gradient(var(--card-bg, #120F17) 0 100%) padding-box,
-    linear-gradient(rgb(255 255 255 / 0%) 0% 100%) border-box,
     var(--gradient-one, radial-gradient(at 80% 55%, hsla(268, 100%, 76%, 1) 0px, transparent 50%)) border-box,
     var(--gradient-two, radial-gradient(at 69% 34%, hsla(349, 100%, 74%, 1) 0px, transparent 50%)) border-box,
     var(--gradient-three, radial-gradient(at 8% 6%, hsla(136, 100%, 78%, 1) 0px, transparent 50%)) border-box,
@@ -87,6 +99,8 @@
   opacity: calc((var(--edge-proximity) - var(--color-sensitivity)) / (100 - var(--color-sensitivity)));
 
   mask-image:
+    linear-gradient(black, black),
+    linear-gradient(black, black),
     conic-gradient(
       from var(--cursor-angle) at center,
       black calc(var(--cone-spread) * 1%),
@@ -94,6 +108,8 @@
       transparent calc((100 - var(--cone-spread) - 15) * 1%),
       black calc((100 - var(--cone-spread)) * 1%)
     );
+  mask-clip: border-box, padding-box, border-box;
+  mask-composite: add, exclude, intersect;
 }
 
 /* colored mesh-gradient background fill near edges */

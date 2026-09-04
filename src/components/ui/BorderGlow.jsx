@@ -15,17 +15,18 @@
  * elsewhere, and a mount-only sweep can't repeat for every focus/blur cycle
  * without literally remounting the component — which, with a real `<input>`
  * living inside its `children`, would blur that input the instant it
- * happens. `focusActive` instead fades `--edge-proximity` in on becoming
- * true, loops `--cursor-angle` continuously (reusing the vendor's own
- * `animateValue`/easing helpers, not a different mechanism) for as long as
- * it stays true, and fades back out on becoming false — see
- * `useFocusSweep` below.
+ * happens. `focusActive` instead plays a one-time intro sweep the moment it
+ * becomes true (adapting the vendor's own mount-only `animated` sequence
+ * below, not a different mechanism), then leaves the glow to the vendor's
+ * existing pointer-proximity tracking (`onPointerMove`, already always
+ * wired up) for as long as it stays true — see `useFocusSweep` below.
  *
- * BorderGlow.css has one matching deviation: its visibility rule normally
- * also keys off `:hover`, so hovering an unfocused card shows the glow too.
- * That's dropped there — see its own comment — since this app never wants
- * any effect while unfocused, hover included. Everything else, in both
- * files, is unmodified.
+ * BorderGlow.css has two matching deviations: its visibility rule normally
+ * keys off plain `:hover`, so hovering the card shows the glow whether or
+ * not it's focused. That's narrowed to `.card-focused:hover` there — see
+ * its own comment — since this app never wants any effect while unfocused,
+ * hover included; `.card-focused` is what `useFocusSweep` toggles on
+ * focus/blur. Everything else, in both files, is unmodified.
  */
 import { useRef, useCallback, useEffect } from 'react';
 import './BorderGlow.css';
@@ -100,11 +101,15 @@ function animateValue({ start = 0, end = 100, duration = 1000, delay = 0, ease =
 }
 
 /**
- * Drives `--edge-proximity`/`--cursor-angle`/`.sweep-active` for as long as
- * `isActive` is true — see the file header. `cancelled` guards every
- * `animateValue` callback so a rapid focus -> blur -> focus doesn't leave a
- * stale animation from a previous activation still writing to the card
- * after a newer effect run has taken over.
+ * Toggles `.card-focused` (which, combined with real `:hover` in
+ * BorderGlow.css, is what lets the vendor's own pointer-proximity tracking
+ * show anything at all) for as long as `isActive` is true, and — on
+ * becoming true — plays one intro sweep of `--edge-proximity`/
+ * `--cursor-angle`/`.sweep-active`, identical in shape to the vendor's own
+ * mount-only `animated` effect further down this file. `cancelled` guards
+ * every `animateValue` callback so a rapid focus -> blur -> focus doesn't
+ * leave a stale animation from a previous activation still writing to the
+ * card after a newer effect run has taken over.
  */
 function useFocusSweep(cardRef, isActive) {
   useEffect(() => {
@@ -112,37 +117,57 @@ function useFocusSweep(cardRef, isActive) {
     if (!card) return undefined;
 
     let cancelled = false;
-    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
     if (isActive) {
-      card.classList.add('sweep-active');
-      animateValue({
-        duration: 500,
-        onUpdate: (v) => {
-          if (!cancelled) card.style.setProperty('--edge-proximity', v);
-        },
-      });
+      card.classList.add('card-focused');
 
+      const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
       if (!prefersReducedMotion) {
-        // Linear and unbounded (0deg -> 360deg, then immediately the next
-        // lap) rather than the vendor's single eased sweep — this is the
-        // "while focused" loop `focusActive` adds; see the file header.
-        const loop = () => {
-          if (cancelled) return;
-          animateValue({
-            ease: (t) => t,
-            duration: 3000,
-            start: 0,
-            end: 360,
-            onUpdate: (v) => {
-              if (!cancelled) card.style.setProperty('--cursor-angle', `${v}deg`);
-            },
-            onEnd: loop,
-          });
-        };
-        loop();
+        const angleStart = 110;
+        const angleEnd = 465;
+        card.classList.add('sweep-active');
+        card.style.setProperty('--cursor-angle', `${angleStart}deg`);
+
+        animateValue({
+          duration: 500,
+          onUpdate: (v) => {
+            if (!cancelled) card.style.setProperty('--edge-proximity', v);
+          },
+        });
+        animateValue({
+          ease: easeInCubic,
+          duration: 1500,
+          end: 50,
+          onUpdate: (v) => {
+            if (!cancelled) card.style.setProperty('--cursor-angle', `${(angleEnd - angleStart) * (v / 100) + angleStart}deg`);
+          },
+        });
+        animateValue({
+          ease: easeOutCubic,
+          delay: 1500,
+          duration: 2250,
+          start: 50,
+          end: 100,
+          onUpdate: (v) => {
+            if (!cancelled) card.style.setProperty('--cursor-angle', `${(angleEnd - angleStart) * (v / 100) + angleStart}deg`);
+          },
+        });
+        animateValue({
+          ease: easeInCubic,
+          delay: 2500,
+          duration: 1500,
+          start: 100,
+          end: 0,
+          onUpdate: (v) => {
+            if (!cancelled) card.style.setProperty('--edge-proximity', v);
+          },
+          onEnd: () => {
+            if (!cancelled) card.classList.remove('sweep-active');
+          },
+        });
       }
     } else {
+      card.classList.remove('card-focused');
       animateValue({
         ease: easeInCubic,
         duration: 500,

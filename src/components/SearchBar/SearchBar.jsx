@@ -162,20 +162,20 @@ export function SearchBar({ engineId }) {
           only the glow itself shows — `.frame` already owns this control's
           actual idle/focused look.
 
-          `backgroundColor` is a real near-opaque dark, not transparent, and
-          matters more than it looks like it should: BorderGlow's border
-          layer reads as a *thin ring* only because its own background is
-          painted solidly over the interior first, punching the gradient
-          back to just the strip between that fill and the card's actual
-          edge (see BorderGlow.css's `::before`) — `.glowWrap`'s added
-          padding is what makes that strip wide enough to see. Transparent
-          here removes the punch-out entirely, so the gradient fills the
-          *whole* card instead of just its edge — a wash of color behind
-          `.frame`, not a glowing line around it. */}
+          `backgroundColor` has to stay transparent, not a real color:
+          BorderGlow's ring technique punches out its own interior by
+          painting `backgroundColor` solidly over the card's padding-box,
+          leaving only the 1px border-box strip showing gradient (see
+          BorderGlow.css's `::before`) — but `.frame` sits *in front of* that
+          punch-out, and is itself translucent while focused, so any real
+          color there bleeds through as a wash behind `.frame` instead of
+          staying hidden. Transparent means there's nothing to bleed: the
+          punch-out reveals whatever's behind the card (nothing, here),
+          which is what actually keeps the gradient confined to the ring. */}
       <BorderGlow
         className={styles.glowWrap}
         focusActive={isFocused}
-        backgroundColor="rgba(18, 18, 24, 0.9)"
+        backgroundColor="transparent"
         borderRadius={25}
         glowRadius={14}
         glowIntensity={0.85}
