@@ -12,6 +12,15 @@
  * Fully controlled (`isOpen`/`onOpenChange`) rather than opening itself,
  * since opening is driven by a `contextmenu` event the caller owns (on a
  * bookmark tile, a group tab, ...), not a press on the anchor itself.
+ *
+ * `isNonModal`: by default `Popover` renders a full-viewport `underlay` div
+ * to catch outside clicks and close itself — which also swallows every other
+ * pointer event on the page while open. Right-clicking a second tile while
+ * this menu is still open would hit that underlay instead of the tile, so
+ * the tile's own `contextmenu` handler (and its `preventDefault`) would
+ * never run, and the browser's native menu would flash up before ours
+ * replaced it. Non-modal drops the underlay; outside clicks still close the
+ * menu via the trigger's own blur/press-outside handling.
  */
 
 import { useRef } from 'react';
@@ -36,7 +45,7 @@ export function ContextMenu({ x, y, isOpen, onOpenChange, onAction, children }) 
           what actually positions the menu, this just marks where. */}
       <span ref={anchorRef} className={styles.anchor} style={{ left: x, top: y }} />
 
-      <Popover triggerRef={anchorRef} placement="bottom start" className={styles.popover}>
+      <Popover isNonModal triggerRef={anchorRef} placement="bottom start" className={styles.popover}>
         <Menu className={styles.menu} onAction={onAction}>
           {children}
         </Menu>

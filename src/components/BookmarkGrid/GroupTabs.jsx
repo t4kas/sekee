@@ -133,7 +133,10 @@ export function GroupTabs({ groups, activeGroupId, onSelect, onCreateGroup, onRe
               className={styles.tab}
               data-selected={group.id === activeGroupId || undefined}
               onClick={() => onSelect(group.id)}
-              onContextMenu={(event) => {
+              /* Capture phase — see BookmarkGrid.jsx's identical comment: a
+                 second right-click while a menu is already open must not let
+                 the browser's native menu flash up before ours replaces it. */
+              onContextMenuCapture={(event) => {
                 event.preventDefault();
                 setContextMenu({ groupId: group.id, x: event.clientX, y: event.clientY });
               }}

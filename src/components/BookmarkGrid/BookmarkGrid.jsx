@@ -142,7 +142,13 @@ export function BookmarkGrid({ bookmarks, isLoading, sortMode, onEdit, onDelete,
                  shortcuts normally behave. Users who want a new tab can
                  still middle-click or Ctrl/Cmd-click. */
               rel="noreferrer"
-              onContextMenu={(event) => {
+              /* Capture phase, not bubble: while a menu from an earlier
+                 right-click is still open, React Aria's own outside-interaction
+                 handling can intercept the bubble-phase event before it
+                 reaches here, so `preventDefault` never runs and the browser's
+                 native menu flashes up before ours replaces it. Capturing it
+                 on the way down guarantees `preventDefault` always fires. */
+              onContextMenuCapture={(event) => {
                 event.preventDefault();
                 setContextMenu({ bookmarkId: bookmark.id, x: event.clientX, y: event.clientY });
               }}
