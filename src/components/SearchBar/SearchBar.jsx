@@ -117,9 +117,15 @@ export function SearchBar({ engineId }) {
 
   // Slides rows that changed places, which is what turns the promotion above
   // into something you can follow rather than a list that has silently
-  // rearranged itself between frames.
+  // rearranged itself between frames. `promoteExactMatch` hands back the very
+  // same array when it changes nothing, so this reference check is also the
+  // answer to "is a row currently promoted, and which one" — the hook narrows
+  // that to the render where it actually reaches the top before running the
+  // cascade the rest of the list does around it.
   const listRef = useRef(null);
-  useReorderFlip(listRef);
+  const promotedSuggestion =
+    orderedSuggestions === renderedSuggestions ? null : orderedSuggestions[0];
+  useReorderFlip(listRef, { emergeFrom: promotedSuggestion });
 
   // A fresh batch of suggestions opens the dropdown (or closes it, if the
   // batch is empty) and drops any highlight left over from the last batch.
