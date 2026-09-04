@@ -14,13 +14,22 @@
    order. `padding` is the exception: not overriding anything (the vendor
    default is 0), it's just breathing room between the ring (confined to
    `.border-glow-card`'s own 1px border, see BorderGlow.css's `::before`)
-   and `.frame`'s own edge. */
+   and `.frame`'s own edge.
+
+   `overflow: hidden` is also a deliberate override, not a vendor default
+   (the vendor sets `overflow: visible` so `.edge-light`'s bloom — which
+   extends *outside* the card via a negative `inset` — has room to render).
+   This app wants the opposite: the glow should read as light escaping from
+   inside the pill, not a halo cast onto the page around it, so it's clipped
+   to the pill's own rounded edge instead of being allowed to spill past
+   it. */
 .glowWrap {
   padding: 3px;
   border-radius: 25px !important;
   border-color: transparent !important;
   box-shadow: none !important;
   background: transparent !important;
+  overflow: hidden !important;
 }
 
 /* The focus frame. Sits around `.bar` and, once suggestions are open, around

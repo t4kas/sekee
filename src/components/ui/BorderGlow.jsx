@@ -71,6 +71,18 @@ function buildGradientVars(colors) {
   return vars;
 }
 
+/**
+ * The ring's `border-image-source` (see BorderGlow.css's `::before`, and its
+ * comment on why `border-image` replaces the vendor's mesh-of-radial-
+ * gradients-plus-masking technique for the ring specifically). A conic
+ * gradient sweeping through `colors` and back to the first, so it tiles
+ * seamlessly around the ring with no seam where it meets itself, and reads
+ * as travelling around the border as `--cursor-angle` changes.
+ */
+function buildRingGradient(colors) {
+  return `conic-gradient(from var(--cursor-angle), ${[...colors, colors[0]].join(', ')})`;
+}
+
 function isLightColor(color) {
   const value = color.trim().replace('#', '');
   if (!/^[\da-f]{3}([\da-f]{3})?$/i.test(value)) return false;
@@ -311,6 +323,7 @@ const BorderGlow = ({
         '--glow-padding': `${glowRadius}px`,
         '--cone-spread': coneSpread,
         '--fill-opacity': fillOpacity,
+        '--ring-source': buildRingGradient(colors),
         ...glowVars,
         ...buildGradientVars(colors),
       }}

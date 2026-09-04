@@ -158,30 +158,35 @@ export function SearchBar({ engineId }) {
           `focusActive` is what makes it appear specifically while the
           search bar is focused, per that component's own file header.
           `.glowWrap`'s overrides in SearchBar.module.css strip BorderGlow's
-          own idle-state chrome (a border and ambient shadow by default), so
-          only the glow itself shows — `.frame` already owns this control's
-          actual idle/focused look.
+          own idle-state chrome (a border and ambient shadow by default) and
+          clip the whole effect to the pill's own edge, so only a contained
+          glow shows — `.frame` already owns this control's actual
+          idle/focused look. `backgroundColor` barely matters here:
+          `.glowWrap` forces the card's own background transparent
+          regardless, so this only feeds `isLightColor`'s idle-state variant
+          (irrelevant once that idle state is stripped) — left as the vendor
+          default rather than removed, since the prop still exists.
 
-          `backgroundColor` has to stay transparent, not a real color:
-          BorderGlow's ring technique punches out its own interior by
-          painting `backgroundColor` solidly over the card's padding-box,
-          leaving only the 1px border-box strip showing gradient (see
-          BorderGlow.css's `::before`) — but `.frame` sits *in front of* that
-          punch-out, and is itself translucent while focused, so any real
-          color there bleeds through as a wash behind `.frame` instead of
-          staying hidden. Transparent means there's nothing to bleed: the
-          punch-out reveals whatever's behind the card (nothing, here),
-          which is what actually keeps the gradient confined to the ring. */}
+          `fillOpacity={0}` turns off `::after`, BorderGlow.css's "interior
+          tint near edges" layer, entirely — see that CSS block's own
+          comment for why (its masking doesn't reliably confine it, so any
+          nonzero value risks washing the whole interior rather than staying
+          near the edges). `glowRadius`/`glowIntensity` are still turned down
+          from the vendor's defaults: `.edge-light`'s bloom is a stack of
+          inset box-shadows blurred up to 50px, which reads as filling most
+          of a control this size at full strength even now that it's clipped
+          to the pill (`overflow: hidden` on `.glowWrap`) rather than
+          spilling past it. */}
       <BorderGlow
         className={styles.glowWrap}
         focusActive={isFocused}
         backgroundColor="transparent"
         borderRadius={25}
-        glowRadius={14}
-        glowIntensity={0.85}
+        glowRadius={6}
+        glowIntensity={0.5}
         edgeSensitivity={20}
         coneSpread={12}
-        fillOpacity={0.12}
+        fillOpacity={0}
         glowColor={GLOW_COLOR}
         colors={GLOW_MESH_COLORS}
       >
