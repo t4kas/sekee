@@ -40,6 +40,7 @@ import { useEffect, useId, useState } from 'react';
 import { Button, Input, Label, SearchField } from 'react-aria-components';
 import { EngineLogo } from './EngineLogo.jsx';
 import { SearchIcon } from '../ui/icons.jsx';
+import SearchGlow from '../ui/SearchGlow.jsx';
 import { buildSearchUrl, getEngine } from '../../services/searchEngines.js';
 import { tryNormaliseUrl } from '../../services/bookmarksService.js';
 import { getFaviconUrl } from '../../services/favicons.js';
@@ -47,12 +48,20 @@ import { useSearchSuggestions } from '../../hooks/useSearchSuggestions.js';
 import { useLinkPreview } from '../../hooks/useLinkPreview.js';
 import styles from './SearchBar.module.css';
 
+// This app's accent (tokens.css's `--accent: #7cc0ff`) plus two related
+// blues, so `SearchGlow`'s ring reads as *this app's* color rather than an
+// arbitrary rainbow.
+const GLOW_COLORS = ['#7cc0ff', '#93c5fd', '#38bdf8'];
+
 /** @param {{ engineId: string }} props */
 export function SearchBar({ engineId }) {
   const [typedQuery, setTypedQuery] = useState('');
   const [displayValue, setDisplayValue] = useState('');
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const [isOpen, setIsOpen] = useState(false);
+  // Drives SearchGlow's `focusActive` — the glow only ever shows while the
+  // search bar is actually focused, never on a plain unfocused hover.
+  const [isFocused, setIsFocused] = useState(false);
   // What's actually on screen. This lags one step behind the hook's own
   // `suggestions` on the way *down* to empty: clearing the field zeroes
   // `suggestions` the instant the debounce fires, but if the dropdown
@@ -141,119 +150,133 @@ export function SearchBar({ engineId }) {
 
   return (
     <div className={styles.wrap}>
-      {/* Faint focus frame around the pill and, once it grows to include the
-          dropdown row below, around the suggestions too. Sizing comes from
-          normal layout (no JS measurement) — `data-open` just switches the
-          suggestions row's grid track between 0fr and 1fr, which animates
-          smoothly without knowing the list's height up front. */}
-      <div className={styles.frame} data-open={isOpen || undefined}>
-        <div className={styles.bar}>
-          <span className={styles.logo}>
-            <EngineLogo engine={engine} size={18} />
-          </span>
+      {/* `SearchGlow` (ui/SearchGlow.jsx) draws a thin ring around `.frame`
+          — the box that hugs the pill and, once suggestions are open, the
+          dropdown too — which lights up near the pointer while `isFocused`.
+          See that file's header for why it's a bespoke SVG component rather
+          than the vendored CSS one it started as, and why it takes no shape
+          props: it reads `.frame`'s own size and corner radii, so the ring
+          keeps hugging it through the open/close transition rather than
+          needing to be told the shape twice. */}
+      <SearchGlow className={styles.glowWrap} focusActive={isFocused} colors={GLOW_COLORS}>
+        {/* Faint focus frame around the pill and, once it grows to include the
+            dropdown row below, around the suggestions too. Sizing comes from
+            normal layout (no JS measurement) — `data-open` just switches the
+            suggestions row's grid track between 0fr and 1fr, which animates
+            smoothly without knowing the list's height up front. */}
+        <div className={styles.frame} data-open={isOpen || undefined}>
+          <div className={styles.bar}>
+            <span className={styles.logo}>
+              <EngineLogo engine={engine} size={18} />
+            </span>
 
-          <SearchField
-            className={styles.field}
-            value={displayValue}
-            onChange={handleChange}
-            onSubmit={submitSearch}
-          >
-            {/* Announced to screen readers, invisible on screen — the logo and
-                placeholder already make the purpose obvious visually. */}
-            <Label className="visually-hidden">Search the web</Label>
+            <SearchField
+              className={styles.field}
+              value={displayValue}
+              onChange={handleChange}
+              onSubmit={submitSearch}
+            >
+              {/* Announced to screen readers, invisible on screen — the logo and
+                  placeholder already make the purpose obvious visually. */}
+              <Label className="visually-hidden">Search the web</Label>
 
-            <Input
-              className={styles.input}
-              placeholder={`Search with ${engine.name}`}
-              /* Focused on load so you can start typing the moment a tab opens
-                 — the whole point of a new-tab page. */
-              autoFocus
-              /* Browsers try to be helpful with search inputs; for a homepage
-                 these all get in the way. */
-              autoComplete="off"
-              autoCorrect="off"
-              autoCapitalize="off"
-              spellCheck="false"
-              onKeyDownCapture={handleInputKeyDownCapture}
-              onBlur={() => setIsOpen(false)}
-              role="combobox"
-              aria-autocomplete="list"
-              aria-expanded={isOpen}
-              aria-controls={listboxId}
-              aria-activedescendant={
-                highlightedIndex >= 0 ? `${listboxId}-option-${highlightedIndex}` : undefined
-              }
-            />
-          </SearchField>
+              <Input
+                className={styles.input}
+                placeholder={`Search with ${engine.name}`}
+                /* Focused on load so you can start typing the moment a tab opens
+                   — the whole point of a new-tab page. */
+                autoFocus
+                /* Browsers try to be helpful with search inputs; for a homepage
+                   these all get in the way. */
+                autoComplete="off"
+                autoCorrect="off"
+                autoCapitalize="off"
+                spellCheck="false"
+                onKeyDownCapture={handleInputKeyDownCapture}
+                onFocus={() => setIsFocused(true)}
+                onBlur={() => {
+                  setIsOpen(false);
+                  setIsFocused(false);
+                }}
+                role="combobox"
+                aria-autocomplete="list"
+                aria-expanded={isOpen}
+                aria-controls={listboxId}
+                aria-activedescendant={
+                  highlightedIndex >= 0 ? `${listboxId}-option-${highlightedIndex}` : undefined
+                }
+              />
+            </SearchField>
 
-          {/* React Aria's own Button rather than our styled wrapper, so this
-              file owns the styling outright — mixing the two would leave two
-              equal-specificity rules fighting over the size and shape. */}
-          <Button
-            className={styles.submit}
-            onPress={() => submitSearch(displayValue)}
-            isDisabled={!displayValue.trim()}
-            aria-label={`Search with ${engine.name}`}
-          >
-            <SearchIcon size={19} />
-          </Button>
+            {/* React Aria's own Button rather than our styled wrapper, so this
+                file owns the styling outright — mixing the two would leave two
+                equal-specificity rules fighting over the size and shape. */}
+            <Button
+              className={styles.submit}
+              onPress={() => submitSearch(displayValue)}
+              isDisabled={!displayValue.trim()}
+              aria-label={`Search with ${engine.name}`}
+            >
+              <SearchIcon size={19} />
+            </Button>
+          </div>
+
+          {/* Always mounted — both so `.frame`'s grid track has something to
+              animate between 0fr and 1fr, and so a suggestion that persists
+              across an update keeps its DOM node (see the key below) instead
+              of being torn down and popped back onto screen. */}
+          <div className={styles.suggestionsRow}>
+            <ul className={styles.suggestions} id={listboxId} role="listbox">
+              {renderedSuggestions.map((suggestion, index) => {
+                const url = tryNormaliseUrl(suggestion);
+
+                return (
+                  <li
+                    // Keyed on the suggestion's own text rather than its batch
+                    // or index. A word that carries over between two fetches
+                    // (typing "hel" -> "hell" often keeps "hello" in both
+                    // lists) then keeps the same DOM node and just slides to
+                    // its new position instead of being torn down and
+                    // re-blurred-in — that's what makes consecutive batches
+                    // read as one smooth update rather than a hard cut. Only
+                    // genuinely new suggestions mount fresh and play the
+                    // entrance animation.
+                    key={suggestion}
+                    id={`${listboxId}-option-${index}`}
+                    role="option"
+                    aria-selected={index === highlightedIndex}
+                    className={styles.suggestion}
+                    // Loosens the plain row's single-line truncation so a
+                    // multi-line card can lay out its title and description.
+                    data-variant={url ? 'link' : undefined}
+                    style={{ animationDelay: `${index * 20}ms` }}
+                    data-highlighted={index === highlightedIndex || undefined}
+                    // Stops the input from ever losing focus to this click, so
+                    // there's no blur race with `onClick` selecting the suggestion.
+                    onMouseDown={(event) => event.preventDefault()}
+                    // `onMouseMove` rather than `onMouseEnter`: a row that
+                    // appears directly under an already-still cursor (typing
+                    // doesn't move the mouse) can end up "entered" the instant
+                    // it renders, silently overwriting what's typed with a
+                    // suggestion before the user has touched the mouse at all.
+                    // `mousemove` only ever fires from genuine pointer motion,
+                    // so hovering can't hijack the field until the user
+                    // actually moves the mouse over the dropdown.
+                    onMouseMove={() => highlight(index)}
+                    onClick={() => selectSuggestion(suggestion)}
+                  >
+                    {url ? (
+                      <LinkSuggestion url={url} fallbackLabel={suggestion} />
+                    ) : (
+                      <MatchedSuggestion text={suggestion} query={typedQuery} />
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
         </div>
-
-        {/* Always mounted — both so `.frame`'s grid track has something to
-            animate between 0fr and 1fr, and so a suggestion that persists
-            across an update keeps its DOM node (see the key below) instead
-            of being torn down and popped back onto screen. */}
-        <div className={styles.suggestionsRow}>
-          <ul className={styles.suggestions} id={listboxId} role="listbox">
-            {renderedSuggestions.map((suggestion, index) => {
-              const url = tryNormaliseUrl(suggestion);
-
-              return (
-                <li
-                  // Keyed on the suggestion's own text rather than its batch
-                  // or index. A word that carries over between two fetches
-                  // (typing "hel" -> "hell" often keeps "hello" in both
-                  // lists) then keeps the same DOM node and just slides to
-                  // its new position instead of being torn down and
-                  // re-blurred-in — that's what makes consecutive batches
-                  // read as one smooth update rather than a hard cut. Only
-                  // genuinely new suggestions mount fresh and play the
-                  // entrance animation.
-                  key={suggestion}
-                  id={`${listboxId}-option-${index}`}
-                  role="option"
-                  aria-selected={index === highlightedIndex}
-                  className={styles.suggestion}
-                  // Loosens the plain row's single-line truncation so a
-                  // multi-line card can lay out its title and description.
-                  data-variant={url ? 'link' : undefined}
-                  style={{ animationDelay: `${index * 20}ms` }}
-                  data-highlighted={index === highlightedIndex || undefined}
-                  // Stops the input from ever losing focus to this click, so
-                  // there's no blur race with `onClick` selecting the suggestion.
-                  onMouseDown={(event) => event.preventDefault()}
-                  // `onMouseMove` rather than `onMouseEnter`: a row that
-                  // appears directly under an already-still cursor (typing
-                  // doesn't move the mouse) can end up "entered" the instant
-                  // it renders, silently overwriting what's typed with a
-                  // suggestion before the user has touched the mouse at all.
-                  // `mousemove` only ever fires from genuine pointer motion,
-                  // so hovering can't hijack the field until the user
-                  // actually moves the mouse over the dropdown.
-                  onMouseMove={() => highlight(index)}
-                  onClick={() => selectSuggestion(suggestion)}
-                >
-                  {url ? (
-                    <LinkSuggestion url={url} fallbackLabel={suggestion} />
-                  ) : (
-                    <MatchedSuggestion text={suggestion} query={typedQuery} />
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-      </div>
+      </SearchGlow>
     </div>
   );
 }

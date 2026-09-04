@@ -65,7 +65,11 @@ import styles from './SettingsModal.module.css';
  * @param {() => void} props.refreshBookmarks
  * @param {() => void} props.refreshSettings
  * @param {{id: string, name: string}[]} props.groups
+ * @param {(name: string) => Promise<void>} props.onCreateGroup
+ * @param {(id: string, name: string) => Promise<void>} props.onRenameGroup
  * @param {(orderedIds: string[]) => void} props.onReorderGroups
+ * @param {() => void} props.onExportBookmarks
+ * @param {(file: File) => Promise<{imported: number, skipped: number, groupsCreated: number}>} props.onImportBookmarks
  */
 export function SettingsModal({
   isOpen,
@@ -82,7 +86,11 @@ export function SettingsModal({
   refreshBookmarks,
   refreshSettings,
   groups,
+  onCreateGroup,
+  onRenameGroup,
   onReorderGroups,
+  onExportBookmarks,
+  onImportBookmarks,
 }) {
   const [activeTab, setActiveTab] = useState('account');
   // Separate from `isOpen` above, same reason `App.jsx` keeps its own
@@ -163,7 +171,11 @@ export function SettingsModal({
                   settings={settings}
                   onSettingsChange={onSettingsChange}
                   groups={groups}
+                  onCreateGroup={onCreateGroup}
+                  onRenameGroup={onRenameGroup}
                   onReorderGroups={onReorderGroups}
+                  onExportBookmarks={onExportBookmarks}
+                  onImportBookmarks={onImportBookmarks}
                 />
               </TabPanel>
 

@@ -14,6 +14,7 @@
 
 import { Button as AriaButton } from 'react-aria-components';
 import { HeartIcon } from '../ui/icons.jsx';
+import { Tooltip } from '../ui/Tooltip.jsx';
 import styles from './FavoriteButton.module.css';
 
 /**
@@ -44,14 +45,13 @@ export function FavoriteButton({ photo, user, favorites, addFavorite, removeFavo
     mutation.catch(() => {});
   }
 
+  const label = isFavorited ? 'Remove from favorites' : 'Add to favorites';
+
   return (
-    <AriaButton
-      className={styles.button}
-      aria-label={isFavorited ? 'Remove from favorites' : 'Add to favorites'}
-      aria-pressed={isFavorited}
-      onPress={handlePress}
-    >
-      <HeartIcon size={18} filled={isFavorited} />
-    </AriaButton>
+    <Tooltip label={label} placement="left">
+      <AriaButton className={styles.button} aria-label={label} aria-pressed={isFavorited} onPress={handlePress}>
+        <HeartIcon size={18} filled={isFavorited} />
+      </AriaButton>
+    </Tooltip>
   );
 }

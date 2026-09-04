@@ -14,6 +14,7 @@
 
 import { Button as AriaButton } from 'react-aria-components';
 import { TrashIcon } from '../ui/icons.jsx';
+import { Tooltip } from '../ui/Tooltip.jsx';
 import styles from './FavoritesGrid.module.css';
 
 /**
@@ -49,13 +50,15 @@ export function FavoritesGrid({ favorites, settings, onSettingsChange, removeFav
               <img src={photo.imageUrl} alt={photo.altText} className={styles.image} />
             </button>
 
-            <AriaButton
-              className={styles.remove}
-              aria-label={`Remove ${photo.altText || 'favorite'}`}
-              onPress={() => removeFavorite(photo.id).catch(() => {})}
-            >
-              <TrashIcon size={14} />
-            </AriaButton>
+            <Tooltip label="Remove">
+              <AriaButton
+                className={styles.remove}
+                aria-label={`Remove ${photo.altText || 'favorite'}`}
+                onPress={() => removeFavorite(photo.id).catch(() => {})}
+              >
+                <TrashIcon size={14} />
+              </AriaButton>
+            </Tooltip>
           </div>
         );
       })}

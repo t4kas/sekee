@@ -2,6 +2,28 @@
   width: 100%;
 }
 
+/* Wraps `.frame` — the glow (ui/SearchGlow.jsx) needs a real DOM ancestor
+   sized to match `.frame`, not something `.frame`'s own CSS could grow on
+   its own. SearchGlow draws its own ring, blur, and clipping entirely
+   through its own inline styles/SVG, so unlike the vendored component this
+   replaced, there's no idle-state chrome or stray defaults to override here.
+
+   The focused lift lives here rather than on `.frame` (where the rest of
+   the focused treatment still is) because SearchGlow positions its ring
+   against *this* box: a transform on `.frame` alone would slide the frame
+   out from under its own ring by those 3px, leaving the glow visibly
+   hanging below the box it's supposed to be hugging. Lifting the wrapper
+   moves both together. */
+.glowWrap {
+  display: block;
+  transform: translateY(0);
+  transition: transform var(--duration-med) var(--ease);
+}
+
+.glowWrap:focus-within {
+  transform: translateY(-3px);
+}
+
 /* The focus frame. Sits around `.bar` and, once suggestions are open, around
    the dropdown too — `padding` (not `.bar`'s own size) is what "hugs" the
    pair, so it grows outward from the pill rather than the pill growing.
@@ -28,28 +50,27 @@
   background: transparent;
   box-shadow: none;
   padding: 0;
-  transform: translateY(0);
 
   transition:
     padding var(--duration-med) var(--ease),
     background var(--duration-med) var(--ease),
     border-color var(--duration-med) var(--ease),
     box-shadow var(--duration-med) var(--ease),
-    transform var(--duration-med) var(--ease),
     border-radius var(--duration-med) var(--ease),
     grid-template-rows var(--duration-med) var(--ease);
 }
 
 /* Faint, translucent box — deliberately lighter than `.bar`'s own surface so
-   it reads as a halo around the control rather than a second pill. Lifting
-   it a few pixels (`translateY`) is the "pushed up" part of the brief. */
+   it reads as a halo around the control rather than a second pill. The
+   "pushed up" part of the brief is the matching lift on `.glowWrap` above,
+   which has to own the transform so the glow ring travels with it. */
 .frame:focus-within {
   padding: var(--space-2);
   background: color-mix(in srgb, var(--surface) 45%, transparent);
   border-color: color-mix(in srgb, var(--border-strong) 55%, transparent);
   box-shadow: var(--shadow-md);
-  transform: translateY(-3px);
 }
+
 
 .frame[data-open] {
   grid-template-rows: auto 1fr;
@@ -203,10 +224,21 @@
 /* The frame's second grid row. Always rendered (even with an empty list)
    so `.frame`'s 0fr -> 1fr transition has a track to animate; `overflow:
    hidden` clips the list out of view while collapsed instead of it
-   reflowing into view unclipped. */
+   reflowing into view unclipped.
+
+   That clip has to be rounded, not the square box it would be by default.
+   `.suggestions` below casts a large shadow, and a shadow is painted
+   everywhere outside its caster's border box — including the little wedge
+   between its own rounded corner and the square corner of the box clipping
+   it. Left square, that wedge reads as a hard right-angled notch of shadow
+   sitting inside `.frame`'s rounded corner, since the row's bottom corners
+   are exactly where the frame curves away. The radius is the frame's own
+   bottom radius minus the distance in to this row (its padding and border),
+   which is what keeps the two curves concentric. */
 .suggestionsRow {
   overflow: hidden;
   min-height: 0;
+  border-radius: 0 0 calc(var(--radius-lg) - var(--space-2) - 1px) calc(var(--radius-lg) - var(--space-2) - 1px);
 }
 
 .suggestions {
