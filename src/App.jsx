@@ -23,6 +23,8 @@ import { BookmarkDialog } from './components/BookmarkDialog/BookmarkDialog.jsx';
 import { ConfirmDialog } from './components/BookmarkDialog/ConfirmDialog.jsx';
 import { SettingsModal } from './components/SettingsModal/SettingsModal.jsx';
 import { AccountControl } from './components/Account/AccountControl.jsx';
+import { PhotoCredit } from './components/Background/PhotoCredit.jsx';
+import { FavoriteButton } from './components/Background/FavoriteButton.jsx';
 import { AuthDialog } from './components/Account/AuthDialog.jsx';
 import { SettingsIcon } from './components/ui/icons.jsx';
 import { Tooltip } from './components/ui/Tooltip.jsx';
@@ -199,14 +201,7 @@ export default function App() {
 
   return (
     <>
-      <Background
-        photo={photo}
-        user={user}
-        favorites={favorites}
-        addFavorite={addFavorite}
-        removeFavorite={removeFavorite}
-        onRequestSignIn={() => setIsAuthDialogOpen(true)}
-      />
+      <Background photo={photo} />
 
       <div className={styles.app}>
         <header className={styles.header}>
@@ -248,6 +243,25 @@ export default function App() {
             onReorder={reorderBookmarks}
           />
         </main>
+
+        {/* The photographer credit Unsplash requires, plus the favourite
+            toggle. These used to hang off `Background`, which is fixed, so
+            they stayed put but floated *over* a dashboard long enough to
+            scroll. As a real footer they hold the bottom edge and take up
+            their own space, so nothing ends up underneath them. */}
+        {photo && (
+          <footer className={styles.footer}>
+            <PhotoCredit photo={photo} />
+            <FavoriteButton
+              photo={photo}
+              user={user}
+              favorites={favorites}
+              addFavorite={addFavorite}
+              removeFavorite={removeFavorite}
+              onRequestSignIn={() => setIsAuthDialogOpen(true)}
+            />
+          </footer>
+        )}
       </div>
 
       <BookmarkDialog

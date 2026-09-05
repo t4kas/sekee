@@ -40,6 +40,8 @@ import {
 } from 'react-aria-components';
 import { BookmarkIcon, CameraIcon, CloseIcon, CloudIcon, SlidersIcon, SunIcon, UserIcon } from '../ui/icons.jsx';
 import { AuthDialog } from '../Account/AuthDialog.jsx';
+import { MobileSettings } from './MobileSettings.jsx';
+import { useMediaQuery } from '../../hooks/useMediaQuery.js';
 import { AccountTab } from './AccountTab.jsx';
 import { PreferencesTab } from './PreferencesTab.jsx';
 import { PersonalisationTab } from './PersonalisationTab.jsx';
@@ -93,10 +95,82 @@ export function SettingsModal({
   onImportBookmarks,
 }) {
   const [activeTab, setActiveTab] = useState('account');
+  // Phones get a drill-down instead of tabs (see MobileSettings.jsx), which
+  // needs one extra thing tabs don't have: a state with *nothing* open, for
+  // the menu itself. Kept separate from `activeTab` so that resizing across
+  // the breakpoint mid-session doesn't strand either layout.
+  const [openSectionId, setOpenSectionId] = useState(null);
+  const isCompact = useMediaQuery('(max-width: 560px)');
   // Separate from `isOpen` above, same reason `App.jsx` keeps its own
   // AuthDialog state separate from the bookmark dialog's: this has its own
   // trigger (the Account tab's "Sign in" button) unrelated to anything else.
   const [isAuthDialogOpen, setIsAuthDialogOpen] = useState(false);
+
+  // One description of each section, shared by both layouts below — the
+  // desktop tabs and the phone's drill-down render from this same array, so
+  // adding a section is still a single entry rather than two.
+  //
+  // Building the panel elements up front costs nothing: an element is a
+  // description, not a render. Only the open one is ever mounted, on either
+  // layout.
+  const sections = [
+    {
+      id: 'account',
+      label: 'Account',
+      icon: <UserIcon size={16} />,
+      panel: <AccountTab user={user} signOut={signOut} onRequestSignIn={() => setIsAuthDialogOpen(true)} />,
+    },
+    {
+      id: 'preferences',
+      label: 'Preferences',
+      icon: <SlidersIcon size={16} />,
+      panel: <PreferencesTab settings={settings} onSettingsChange={onSettingsChange} />,
+    },
+    {
+      id: 'personalisation',
+      label: 'Personalisation',
+      icon: <CameraIcon size={16} />,
+      panel: (
+        <PersonalisationTab
+          settings={settings}
+          onSettingsChange={onSettingsChange}
+          onNewPhoto={onNewPhoto}
+          user={user}
+          favorites={favorites}
+          removeFavorite={removeFavorite}
+        />
+      ),
+    },
+    {
+      id: 'bookmarks',
+      label: 'Bookmarks',
+      icon: <BookmarkIcon size={16} />,
+      panel: (
+        <BookmarksTab
+          settings={settings}
+          onSettingsChange={onSettingsChange}
+          groups={groups}
+          onCreateGroup={onCreateGroup}
+          onRenameGroup={onRenameGroup}
+          onReorderGroups={onReorderGroups}
+          onExportBookmarks={onExportBookmarks}
+          onImportBookmarks={onImportBookmarks}
+        />
+      ),
+    },
+    {
+      id: 'sync',
+      label: 'Sync',
+      icon: <CloudIcon size={16} />,
+      panel: <SyncTab user={user} refreshBookmarks={refreshBookmarks} refreshSettings={refreshSettings} />,
+    },
+    {
+      id: 'weather',
+      label: 'Weather',
+      icon: <SunIcon size={16} />,
+      panel: <WeatherTab settings={settings} onSettingsChange={onSettingsChange} />,
+    },
+  ];
 
   return (
     <>
@@ -115,83 +189,43 @@ export function SettingsModal({
       >
         <Modal className={styles.modal}>
           <Dialog className={styles.dialog} aria-label="Settings">
-            <div className={styles.header}>
-              <Heading slot="title" className={styles.heading}>
-                Settings
-              </Heading>
-              <AriaButton className={styles.closeButton} aria-label="Close" onPress={onClose}>
-                <CloseIcon size={18} />
-              </AriaButton>
-            </div>
+            {isCompact ? (
+              <MobileSettings
+                sections={sections}
+                openSectionId={openSectionId}
+                onNavigate={setOpenSectionId}
+                user={user}
+                onClose={onClose}
+              />
+            ) : (
+              <>
+                <div className={styles.header}>
+                  <Heading slot="title" className={styles.heading}>
+                    Settings
+                  </Heading>
+                  <AriaButton className={styles.closeButton} aria-label="Close" onPress={onClose}>
+                    <CloseIcon size={18} />
+                  </AriaButton>
+                </div>
 
-            <Tabs className={styles.body} selectedKey={activeTab} onSelectionChange={setActiveTab}>
-              <TabList className={styles.sidebar} aria-label="Settings sections">
-                <Tab id="account" className={styles.tabButton}>
-                  <UserIcon size={16} />
-                  Account
-                </Tab>
-                <Tab id="preferences" className={styles.tabButton}>
-                  <SlidersIcon size={16} />
-                  Preferences
-                </Tab>
-                <Tab id="personalisation" className={styles.tabButton}>
-                  <CameraIcon size={16} />
-                  Personalisation
-                </Tab>
-                <Tab id="bookmarks" className={styles.tabButton}>
-                  <BookmarkIcon size={16} />
-                  Bookmarks
-                </Tab>
-                <Tab id="sync" className={styles.tabButton}>
-                  <CloudIcon size={16} />
-                  Sync
-                </Tab>
-                <Tab id="weather" className={styles.tabButton}>
-                  <SunIcon size={16} />
-                  Weather
-                </Tab>
-              </TabList>
+                <Tabs className={styles.body} selectedKey={activeTab} onSelectionChange={setActiveTab}>
+                  <TabList className={styles.sidebar} aria-label="Settings sections">
+                    {sections.map((section) => (
+                      <Tab key={section.id} id={section.id} className={styles.tabButton}>
+                        {section.icon}
+                        {section.label}
+                      </Tab>
+                    ))}
+                  </TabList>
 
-              <TabPanel id="account" className={styles.content}>
-                <AccountTab user={user} signOut={signOut} onRequestSignIn={() => setIsAuthDialogOpen(true)} />
-              </TabPanel>
-
-              <TabPanel id="preferences" className={styles.content}>
-                <PreferencesTab settings={settings} onSettingsChange={onSettingsChange} />
-              </TabPanel>
-
-              <TabPanel id="personalisation" className={styles.content}>
-                <PersonalisationTab
-                  settings={settings}
-                  onSettingsChange={onSettingsChange}
-                  onNewPhoto={onNewPhoto}
-                  user={user}
-                  favorites={favorites}
-                  removeFavorite={removeFavorite}
-                />
-              </TabPanel>
-
-              <TabPanel id="bookmarks" className={styles.content}>
-                <BookmarksTab
-                  settings={settings}
-                  onSettingsChange={onSettingsChange}
-                  groups={groups}
-                  onCreateGroup={onCreateGroup}
-                  onRenameGroup={onRenameGroup}
-                  onReorderGroups={onReorderGroups}
-                  onExportBookmarks={onExportBookmarks}
-                  onImportBookmarks={onImportBookmarks}
-                />
-              </TabPanel>
-
-              <TabPanel id="sync" className={styles.content}>
-                <SyncTab user={user} refreshBookmarks={refreshBookmarks} refreshSettings={refreshSettings} />
-              </TabPanel>
-
-              <TabPanel id="weather" className={styles.content}>
-                <WeatherTab settings={settings} onSettingsChange={onSettingsChange} />
-              </TabPanel>
-            </Tabs>
+                  {sections.map((section) => (
+                    <TabPanel key={section.id} id={section.id} className={styles.content}>
+                      {section.panel}
+                    </TabPanel>
+                  ))}
+                </Tabs>
+              </>
+            )}
           </Dialog>
         </Modal>
       </ModalOverlay>

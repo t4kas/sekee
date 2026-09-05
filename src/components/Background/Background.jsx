@@ -1,8 +1,10 @@
 /**
  * Background
  * ---------------------------------------------------------------------------
- * The full-bleed photo behind everything, plus the photographer credit
- * Unsplash requires.
+ * The full-bleed photo behind everything. Purely the backdrop: the credit
+ * Unsplash requires and the favourite button used to hang off this element
+ * too, but they now sit in App's sticky footer so they hold their place
+ * against a dashboard tall enough to scroll, rather than floating over it.
  *
  * Two details worth noting:
  *
@@ -15,20 +17,13 @@
  *     top and bottom, where the settings button and credit line live.
  */
 
-import { PhotoCredit } from './PhotoCredit.jsx';
-import { FavoriteButton } from './FavoriteButton.jsx';
 import styles from './Background.module.css';
 
 /**
  * @param {object} props
  * @param {Photo|null} props.photo  null while the first photo is loading
- * @param {object|null} props.user
- * @param {Photo[]} props.favorites
- * @param {(photo: Photo) => void} props.addFavorite
- * @param {(photoId: string) => void} props.removeFavorite
- * @param {() => void} props.onRequestSignIn
  */
-export function Background({ photo, user, favorites, addFavorite, removeFavorite, onRequestSignIn }) {
+export function Background({ photo }) {
   return (
     <div
       className={styles.background}
@@ -50,17 +45,6 @@ export function Background({ photo, user, favorites, addFavorite, removeFavorite
 
       <div className={styles.scrim} />
 
-      {photo && <PhotoCredit photo={photo} />}
-      {photo && (
-        <FavoriteButton
-          photo={photo}
-          user={user}
-          favorites={favorites}
-          addFavorite={addFavorite}
-          removeFavorite={removeFavorite}
-          onRequestSignIn={onRequestSignIn}
-        />
-      )}
     </div>
   );
 }
