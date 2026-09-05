@@ -500,26 +500,77 @@
 }
 
 @media (max-width: 560px) {
+  /* Same 16px floor as every other field — see `--text-input` in tokens.css. */
+  .groupNameInput {
+    font-size: var(--text-input);
+  }
+
+  /* A sheet rising from the bottom edge, matching `.sheet` in
+     BookmarkDialog.module.css. Done here rather than by borrowing that class
+     because this component brings its own `.modal`: two single-class rules
+     from different CSS modules would be decided by stylesheet order. */
   .modal {
-    height: 100%;
-    max-height: calc(100vh - var(--space-4));
+    /* A set height rather than `auto`: the six sections differ a lot in
+       length, and sizing to content would have the sheet jump taller or
+       shorter on every tab you tap. Leaves a strip of the page above it, so
+       it reads as a panel over the app and there's somewhere obvious to tap
+       to dismiss. */
+    height: 85vh;
+    max-height: 85vh;
+    max-width: none;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    border-bottom: none;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  .modal[data-entering] {
+    animation: settings-sheet-in var(--duration-med) var(--ease);
+  }
+
+  .modal[data-exiting] {
+    animation: settings-sheet-in var(--duration-fast) var(--ease) reverse;
+  }
+
+  @keyframes settings-sheet-in {
+    from {
+      transform: translateY(100%);
+    }
   }
 
   .body {
     flex-direction: column;
+    /* `.body` is the flex parent of the tab list and the panel. Without this
+       the panel can't shrink below its content, and a long tab (Bookmarks)
+       pushes the sheet past `max-height` instead of scrolling inside it. */
+    min-height: 0;
   }
 
+  /* Six sections in a strip you have to scroll sideways means the ones off
+     the edge may as well not exist. Two columns fits every label and puts
+     all six on screen at once, no scrolling in either direction. */
   .sidebar {
-    flex-direction: row;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-1);
+
     width: 100%;
-    padding: var(--space-2);
+    padding: var(--space-3);
     border-right: none;
     border-bottom: 1px solid var(--border);
-    overflow-x: auto;
-    overflow-y: visible;
+    overflow: visible;
   }
 
   .tabButton {
-    flex-shrink: 0;
+    /* 44px is the tap target a finger actually hits reliably; the desktop
+       row height is set by its text and lands well under that. */
+    min-height: 44px;
+    min-width: 0; /* lets the label ellipsise rather than widen the column */
+  }
+
+  .tabButton span,
+  .tabButton {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 }

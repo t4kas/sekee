@@ -101,7 +101,12 @@ export function SettingsModal({
   return (
     <>
       <ModalOverlay
-        className={dialogStyles.overlay}
+        /* `sheetOverlay` bottom-anchors this on a phone; the matching sheet
+           treatment for the panel itself lives on `.modal` in this
+           component's own stylesheet rather than the shared `.sheet`, since
+           two single-class rules from different CSS modules would be left
+           fighting on stylesheet order. */
+        className={`${dialogStyles.overlay} ${dialogStyles.sheetOverlay}`}
         isOpen={isOpen}
         onOpenChange={(open) => {
           if (!open) onClose();

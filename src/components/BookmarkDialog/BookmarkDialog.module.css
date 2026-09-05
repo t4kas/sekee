@@ -79,3 +79,57 @@
   gap: var(--space-2);
   margin-top: var(--space-2);
 }
+
+/* --- Bottom sheet (phones) ------------------------------------------------ */
+
+/* An opt-in pair of modifiers, not a blanket rule: a dialog that should rise
+   from the bottom edge on a phone rather than sit in the middle of the screen
+   adds `.sheetOverlay` to its `ModalOverlay` and `.sheet` to its `Modal`. Both
+   are no-ops above the breakpoint, so the desktop dialog is untouched.
+
+   Bottom-anchored because that's where a thumb is. It also keeps the dialog
+   clear of the on-screen keyboard, which matters for the two that exist to be
+   typed into.
+
+   Only `.sheet` is offered here rather than a shared `.sheetModal`, because
+   SettingsModal brings its own `.modal` — two single-class rules from
+   different CSS modules would be left fighting on stylesheet order (see
+   CLAUDE.md). It does the same thing in its own file instead. */
+@media (max-width: 560px) {
+  .sheetOverlay {
+    /* The centring grid and the breathing room around it both have to go:
+       a sheet spans the full width and meets the bottom edge. */
+    place-items: end stretch;
+    padding: 0;
+  }
+
+  .sheet {
+    max-width: none;
+    /* Leaves a strip of the page visible above it, so it reads as a panel
+       over the app rather than a new screen — and gives you somewhere
+       obvious to tap to dismiss. */
+    max-height: 88vh;
+    /* Its bottom edge is the screen's, so only the top corners round. */
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    border-bottom: none;
+    /* Clears the home indicator on phones that have one. */
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  /* Rises and falls instead of the desktop fade-and-scale. These sit after
+     `.modal[data-entering]` above and match its specificity exactly, so
+     source order is what makes them win — keep them last in this file. */
+  .sheet[data-entering] {
+    animation: sheet-in var(--duration-med) var(--ease);
+  }
+
+  .sheet[data-exiting] {
+    animation: sheet-in var(--duration-fast) var(--ease) reverse;
+  }
+
+  @keyframes sheet-in {
+    from {
+      transform: translateY(100%);
+    }
+  }
+}

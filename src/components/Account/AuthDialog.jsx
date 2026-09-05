@@ -94,14 +94,18 @@ export function AuthDialog({ isOpen, onClose, signIn, signUp }) {
 
   return (
     <ModalOverlay
-      className={dialogStyles.overlay}
+      /* `sheetOverlay`/`sheet`: on a phone this rises from the bottom edge
+         instead of sitting centred — within thumb reach, and clear of the
+         keyboard that's about to appear under a dialog made of text fields.
+         Both classes do nothing above the breakpoint. */
+      className={`${dialogStyles.overlay} ${dialogStyles.sheetOverlay}`}
       isOpen={isOpen}
       onOpenChange={(open) => {
         if (!open) onClose();
       }}
       isDismissable
     >
-      <Modal className={dialogStyles.modal}>
+      <Modal className={`${dialogStyles.modal} ${dialogStyles.sheet}`}>
         <Dialog className={dialogStyles.dialog}>
           <Heading slot="title" className={dialogStyles.heading}>
             {isSignUp ? 'Create account' : 'Sign in'}
