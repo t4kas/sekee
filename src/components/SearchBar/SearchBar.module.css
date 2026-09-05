@@ -267,9 +267,11 @@
     padding-left: var(--space-4);
   }
 
+  /* Both together, always: `.ghost` only lines up behind the caret while it
+     renders text exactly as `.input` does. */
   .input,
   .ghost {
-    font-size: var(--text-md);
+    font-size: var(--text-input);
   }
 }
 

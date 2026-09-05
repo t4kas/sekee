@@ -162,3 +162,12 @@
   visibility: hidden;
   pointer-events: none;
 }
+
+/* Renaming a group happens in a field, and on a phone a field under 16px
+   makes Safari zoom the page in on focus and leave it there. Only the size
+   moves — see `--text-input` in tokens.css. */
+@media (max-width: 560px) {
+  .tabInput {
+    font-size: var(--text-input);
+  }
+}
