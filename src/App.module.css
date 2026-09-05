@@ -17,7 +17,20 @@
   padding: var(--space-5);
 }
 
+/* Sticky so the account and settings controls stay reachable once there are
+   enough bookmarks for the dashboard to scroll — before this they scrolled
+   away entirely and the only way back was to scroll to the top. Deliberately
+   left transparent rather than given a bar: every control in here already
+   carries its own surface and backdrop-filter, so they stay legible over
+   whatever passes underneath, and the wallpaper stays uninterrupted.
+
+   `top: 0` with the negative-margin trick would fight `.app`'s padding, so
+   the offset simply matches it. */
 .header {
+  position: sticky;
+  top: var(--space-5);
+  z-index: 2;
+
   pointer-events: auto;
 
   display: flex;
@@ -25,6 +38,34 @@
   justify-content: flex-end;
   gap: var(--space-2);
   flex-shrink: 0;
+}
+
+/* The other half of the pair: the credit line and favourite toggle, which
+   App renders here rather than inside `Background` (see its comment there).
+   Sticky rather than fixed so it occupies real space at the end of the
+   column — scrolling to the bottom then lands past the last bookmark
+   instead of leaving it tucked under this.
+
+   `pointer-events` follows the same reasoning as `.app` above: the bar
+   spans the full width but is mostly empty, so it passes clicks through and
+   only its two children take them. */
+.footer {
+  position: sticky;
+  bottom: var(--space-4);
+  z-index: 2;
+
+  pointer-events: none;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-shrink: 0;
+  margin-top: var(--space-5);
+}
+
+.footer > * {
+  pointer-events: auto;
 }
 
 /* Carried over from the old SettingsPopover.module.css's `.trigger` — same
@@ -105,6 +146,16 @@
 @media (max-width: 560px) {
   .app {
     padding: var(--space-4);
+  }
+
+  /* Match the tighter page padding above, so the bars sit the same distance
+     from the edges as everything else. */
+  .header {
+    top: var(--space-4);
+  }
+
+  .footer {
+    bottom: var(--space-3);
   }
 
   .content {

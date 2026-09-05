@@ -1,8 +1,7 @@
+/* Positioned by App's `.footer` flex row rather than pinning itself — see
+   Background.jsx on why it lives there now. */
 .credit {
-  position: absolute;
-  left: var(--space-5);
-  bottom: var(--space-4);
-  z-index: 1;
+  min-width: 0; /* lets long photographer names ellipsise, not push the row */
 
   display: flex;
   align-items: center;
@@ -31,12 +30,4 @@
 
 .link:hover {
   color: var(--fg-primary);
-}
-
-@media (max-width: 560px) {
-  /* On a narrow screen the credit would collide with the bookmark grid. */
-  .credit {
-    left: var(--space-4);
-    right: var(--space-4);
-  }
 }

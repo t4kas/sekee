@@ -517,6 +517,10 @@
        to dismiss. */
     height: 85vh;
     max-height: 85vh;
+    /* Opaque here, unlike the desktop dialog: the pages inside slide over
+       one another, so they have to hide what they cover rather than tint
+       it, and they can only match the panel if the panel is opaque too. */
+    background: var(--surface-opaque);
     max-width: none;
     border-radius: var(--radius-lg) var(--radius-lg) 0 0;
     border-bottom: none;
@@ -545,32 +549,269 @@
     min-height: 0;
   }
 
-  /* Six sections in a strip you have to scroll sideways means the ones off
-     the edge may as well not exist. Two columns fits every label and puts
-     all six on screen at once, no scrolling in either direction. */
-  .sidebar {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: var(--space-1);
+  /* The tab strip is gone entirely on a phone — see MobileSettings.jsx.
+     `.sidebar`/`.tabButton`/`.body` aren't rendered at this width, so what
+     follows styles the drill-down instead. */
 
-    width: 100%;
-    padding: var(--space-3);
-    border-right: none;
+  /* --- Drill-down chrome ------------------------------------------------ */
+
+  .mobile {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    height: 100%;
+  }
+
+  .mobileHeader {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    flex-shrink: 0;
+
+    /* A fixed height keeps the header from resizing as its contents swap
+       between the menu's heading and the detail page's back button. */
+    height: 56px;
+    padding: 0 var(--space-4);
     border-bottom: 1px solid var(--border);
-    overflow: visible;
   }
 
-  .tabButton {
-    /* 44px is the tap target a finger actually hits reliably; the desktop
-       row height is set by its text and lands well under that. */
+  .mobileHeading {
+    font-size: var(--text-xl);
+    font-weight: 600;
+  }
+
+  /* The open section's name, centred in the bar the way a pushed page's
+     title is. Absolutely placed so it centres on the *header*, not on
+     whatever space the back button happens to leave. */
+  .mobileTitle {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+
+    font-size: var(--text-md);
+    font-weight: 600;
+    pointer-events: none;
+  }
+
+  .mobileHeader {
+    position: relative;
+  }
+
+  .backButton {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+
+    /* Extends past the text to a comfortable target without moving it. */
+    margin-left: calc(var(--space-2) * -1);
+    padding: var(--space-2) var(--space-2);
     min-height: 44px;
-    min-width: 0; /* lets the label ellipsise rather than widen the column */
+
+    border: none;
+    background: transparent;
+    color: var(--accent);
+    font-size: var(--text-md);
+    cursor: pointer;
   }
 
-  .tabButton span,
-  .tabButton {
+  .backChevron {
+    transform: rotate(90deg); /* the shared chevron points down */
+  }
+
+  .backButton[data-focus-visible] {
+    outline: none;
+    border-radius: var(--radius-sm);
+    box-shadow: var(--focus-ring);
+  }
+
+  /* Pushes the close button to the far end past the absolutely-placed
+     title, which takes no space of its own. */
+  .mobileHeader .closeButton {
+    margin-left: auto;
+  }
+
+  /* --- The sliding pair ------------------------------------------------- */
+
+  /* Two pages side by side in a clipped track. Sliding one transform moves
+     both, so the outgoing page stays on screen for the whole animation
+     without any mount timing — and an interrupted tap reverses cleanly. */
+  .pages {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .page {
+    position: absolute;
+    inset: 0;
+    overflow-y: auto;
+    background: var(--surface-opaque);
+    -webkit-overflow-scrolling: touch;
+
+    transition: transform var(--duration-med) var(--ease);
+  }
+
+  /* Menu at rest, detail waiting off to the right. */
+  .page:first-child {
+    transform: translateX(0);
+  }
+
+  .page:last-child {
+    transform: translateX(100%);
+  }
+
+  /* Pushed: the menu slides a short way left rather than the full width, so
+     it reads as sitting behind the incoming page instead of racing it off. */
+  .pages[data-open] .page:first-child {
+    transform: translateX(-25%);
+  }
+
+  .pages[data-open] .page:last-child {
+    transform: translateX(0);
+  }
+
+  /* --- Account card ----------------------------------------------------- */
+
+  .accountCard {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    width: 100%;
+
+    margin: var(--space-4) 0 var(--space-5);
+    padding: var(--space-4);
+
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+
+    color: var(--fg-primary);
+    background: var(--surface);
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .accountAvatar {
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+
+    font-size: var(--text-lg);
+    font-weight: 600;
+    color: var(--fg-primary);
+    background: var(--surface-active);
+  }
+
+  .accountAvatarIcon {
+    display: grid;
+    place-items: center;
+    color: var(--fg-secondary);
+  }
+
+  .accountText {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0; /* so a long email ellipsises instead of widening the card */
+  }
+
+  .accountName {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+
+    font-size: var(--text-md);
+    font-weight: 600;
+  }
+
+  .accountMeta {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+
+    font-size: var(--text-sm);
+    color: var(--fg-muted);
+  }
+
+  /* --- Section menu ----------------------------------------------------- */
+
+  /* One grouped block with hairlines between rows, rather than separate
+     buttons — the iOS inset-list shape. */
+  .menu {
+    display: flex;
+    flex-direction: column;
+
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: var(--surface);
+    overflow: hidden;
+  }
+
+  .menuRow {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    width: 100%;
+    min-height: 52px;
+
+    padding: var(--space-3) var(--space-4);
+    border: none;
+    border-bottom: 1px solid var(--border);
+
+    color: var(--fg-primary);
+    background: transparent;
+    text-align: left;
+    font-size: var(--text-md);
+    cursor: pointer;
+  }
+
+  .menuRow:last-child {
+    border-bottom: none;
+  }
+
+  .menuRow:active,
+  .accountCard:active {
+    background: var(--surface-active);
+  }
+
+  .menuIcon {
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    color: var(--fg-secondary);
+  }
+
+  .menuLabel {
+    flex: 1;
+    min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
+
+  /* The chevron every row ends with. Quarter-turned from the shared
+     down-chevron so there's no near-duplicate icon to maintain. */
+  .rowChevron {
+    flex-shrink: 0;
+    transform: rotate(-90deg);
+    color: var(--fg-muted);
+  }
+
+  .page > .content,
+  .page > .accountCard,
+  .page > .menu {
+    /* The pages scroll, so their own padding has to provide the gutter. */
+    margin-left: var(--space-4);
+    margin-right: var(--space-4);
+    width: auto;
+  }
+
+  .page > .content {
+    padding: var(--space-4) 0;
+  }
+
 }

@@ -58,6 +58,10 @@
   --surface-hover: rgba(255, 255, 255, 0.2);
   --surface-active: rgba(255, 255, 255, 0.28);
   --surface-solid: rgba(28, 28, 32, 0.82); /* dialogs/popovers need more opacity */
+  /* The same colour with nothing behind it. For surfaces that have to hide
+     what's under them rather than tint it — the settings sheet's sliding
+     pages, where a translucent page would show the one it just covered. */
+  --surface-opaque: rgb(28, 28, 32);
 
   --border: rgba(255, 255, 255, 0.18);
   --border-strong: rgba(255, 255, 255, 0.32);

@@ -1,9 +1,7 @@
-/* Mirrors PhotoCredit's bottom-left placement, on the opposite corner. */
+/* Sits at the far end of App's `.footer`, opposite the credit — the row
+   places it, so there's nothing to pin here. */
 .button {
-  position: absolute;
-  right: var(--space-5);
-  bottom: var(--space-4);
-  z-index: 1;
+  flex-shrink: 0;
 
   display: grid;
   place-items: center;
@@ -45,13 +43,4 @@
    the same muted tone every other icon button uses. */
 .button[aria-pressed='true'] {
   color: var(--accent);
-}
-
-@media (max-width: 560px) {
-  /* PhotoCredit's own @media rule expands it to full width on narrow
-     screens (see PhotoCredit.module.css); move up to clear that row rather
-     than overlapping it. */
-  .button {
-    bottom: calc(var(--space-4) + 28px);
-  }
 }
