@@ -1,0 +1,110 @@
+/* Above every dialog (BookmarkDialog's overlay is 100) — while this is up,
+   nothing else on the page is meant to be reachable. Fixed rather than
+   absolute for the same reason `Background` is: it covers the viewport, not
+   the document, however tall the page behind it grows. */
+.preloader {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+
+  display: grid;
+  place-items: center;
+
+  /* The same base colour as `body`, so the gap before the SVG decodes is a
+     continuation of the page rather than a white flash. */
+  background-color: #14161c;
+}
+
+/* The blur bleeds the image's edges inwards and would leave translucent
+   borders, so the picture is scaled up past the viewport to hide them. */
+.backdrop {
+  position: absolute;
+  inset: 0;
+
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+
+  filter: blur(28px) saturate(120%);
+  transform: scale(1.12);
+}
+
+/* Matches `Background`'s scrim so the heading sits on the same tone of
+   darkened wallpaper it will after the app appears. */
+.scrim {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.38);
+}
+
+.mark {
+  position: relative;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-5);
+
+  /* Held back a beat: a cached session resolves in a few frames, and without
+     the delay that shows as a flicker of heading-and-spinner. Anything long
+     enough to be worth a preloader outlasts this easily. */
+  animation: mark-in var(--duration-med) var(--ease) 140ms both;
+}
+
+@keyframes mark-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+.heading {
+  margin: 0;
+
+  font-size: 2.5rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+
+  color: var(--fg-primary);
+  text-shadow: var(--text-shadow);
+}
+
+/* A ring with one lit quarter: the track is the faint border on all four
+   sides, and `border-top-color` overrides it on one of them. */
+.spinner {
+  width: 26px;
+  height: 26px;
+
+  border: 2px solid var(--border);
+  border-top-color: var(--fg-primary);
+  border-radius: 50%;
+
+  animation: spin 700ms linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(1turn);
+  }
+}
+
+@media (max-width: 560px) {
+  .heading {
+    font-size: 2rem;
+  }
+}
+
+/* The spin can't just be dropped — it's the only thing saying the app is
+   still working — so it becomes a pulse: the same "busy" signal with nothing
+   moving across the screen. The tokens already zero the fade above. */
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation: pulse 1.4s var(--ease) infinite;
+  }
+
+  @keyframes pulse {
+    50% {
+      opacity: 0.35;
+    }
+  }
+}

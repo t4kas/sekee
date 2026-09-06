@@ -26,6 +26,7 @@ import { AccountControl } from './components/Account/AccountControl.jsx';
 import { PhotoCredit } from './components/Background/PhotoCredit.jsx';
 import { FavoriteButton } from './components/Background/FavoriteButton.jsx';
 import { AuthDialog } from './components/Account/AuthDialog.jsx';
+import { Preloader } from './components/Preloader/Preloader.jsx';
 import { SettingsIcon } from './components/ui/icons.jsx';
 import { Tooltip } from './components/ui/Tooltip.jsx';
 import { useAuth } from './hooks/useAuth.js';
@@ -42,7 +43,7 @@ export default function App() {
   // `useAuth` is called exactly once, here — see its header comment for why
   // that matters. `user`/`signOut`/`signIn`/`signUp` flow down as props to
   // whatever needs them instead of each calling the hook itself.
-  const { user, signOut, signIn, signUp } = useAuth();
+  const { user, isLoading: isCheckingSession, signOut, signIn, signUp } = useAuth();
   const { settings, updateSettings, refresh: refreshSettings } = useSettings();
   const {
     bookmarks,
@@ -201,6 +202,12 @@ export default function App() {
 
   return (
     <>
+      {/* Covers everything below until `useAuth` has settled — see
+          Preloader.jsx. The app underneath keeps rendering (and its hooks
+          keep loading) rather than being swapped in afterwards, so the page
+          is already warm when the cover comes off. */}
+      {isCheckingSession && <Preloader />}
+
       <Background photo={photo} />
 
       <div className={styles.app}>
