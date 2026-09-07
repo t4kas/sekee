@@ -19,6 +19,9 @@
  * Its border-radius softens from a full pill to a rounded rect at the same
  * time, matching how `SearchBar`'s own `.frame` morphs when its dropdown
  * opens, for the same reason: a tall rectangle looks wrong fully pill-shaped.
+ * The card also grows sideways from the pill's width to the content column's
+ * over the same beat — see `.widget`'s `min-width` comment in the stylesheet
+ * for why that one is animated through `min-width` rather than `width`.
  */
 
 import { useState } from 'react';
