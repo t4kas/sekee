@@ -836,13 +836,15 @@
 .linkFavicon {
   object-fit: contain;
   /* Many favicons are pure white on transparent and vanish against the
-     dark dropdown; a faint plate behind them keeps every icon visible. */
-  background: rgba(255, 255, 255, 0.1);
+     dropdown; a faint plate behind them keeps every icon visible. The token
+     flips with the background's tone (see tokens.css), because this dropdown
+     is in flow inside the app wrapper and flips with it. */
+  background: var(--icon-plate);
   padding: 2px;
 }
 
 .linkFaviconFallback {
-  background: rgba(255, 255, 255, 0.08);
+  background: color-mix(in srgb, var(--icon-plate) 80%, transparent);
   border: 1px solid var(--border);
 }
 
