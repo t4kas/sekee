@@ -81,7 +81,7 @@ export function useSync(user) {
     const remote =
       nextProviderId === 'supabase'
         ? createSupabaseAdapter(session.accountId)
-        : provider.createAdapter(session);
+        : provider.createAdapter(session, (renewed) => writeConnection(nextProviderId, renewed));
 
     await migrateLocalDataToRemote(remote).catch((migrationError) => {
       console.warn('[useSync] could not migrate local data to the remote', migrationError);

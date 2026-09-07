@@ -18,7 +18,11 @@
  *   connect()             -> Promise<Session>   interactive, opens a popup
  *   restore(session)      -> Promise<Session|null>  silent, on boot
  *   disconnect(session)   -> Promise<void>
- *   createAdapter(session)-> Adapter            matching storage.js's contract
+ *   createAdapter(session, onSessionChange) -> Adapter, matching storage.js's
+ *                         contract. `onSessionChange` persists a session the
+ *                         adapter renewed mid-flight (a refreshed access
+ *                         token), so the next page load doesn't have to
+ *                         refresh all over again.
  * where a Session is `{ accountId, accountLabel, ...whatever the provider needs }`
  * and must be JSON-serialisable, because it's what gets persisted below.
  *
@@ -31,9 +35,22 @@
 
 import { createLocalStorageAdapter, StorageKeys } from './storage.js';
 import { DEFAULT_GROUP_ID } from './bookmarkGroupsService.js';
+import * as dropbox from './sync/dropboxClient.js';
+import { createDropboxAdapter } from './dropboxAdapter.js';
 
 /** Bring-your-own-cloud providers, in the order the Sync tab lists them. */
-export const byoProviders = [];
+export const byoProviders = [
+  {
+    id: 'dropbox',
+    label: 'Dropbox',
+    description: 'A folder in your own Dropbox, visible under Apps.',
+    isConfigured: dropbox.isDropboxConfigured,
+    connect: dropbox.connect,
+    restore: dropbox.restore,
+    disconnect: dropbox.disconnect,
+    createAdapter: createDropboxAdapter,
+  },
+];
 
 /** @param {string} id @returns {object|undefined} */
 export function getByoProvider(id) {
