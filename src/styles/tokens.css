@@ -72,6 +72,7 @@
   --accent: #7cc0ff;          /* focus rings, primary buttons */
   --accent-contrast: #0b1220; /* text on top of --accent      */
   --danger: #ff8080;
+  --success: #5fe3a1;         /* "this finished" signals, e.g. the Ask AI completion glow */
 
   /* --- Depth ------------------------------------------------------------ */
   /* Text sitting directly on a photo needs a shadow to stay readable. */

@@ -1,5 +1,50 @@
+/* `position: relative` is only here to host `.wrap::before` (the ambient
+   AI-mode gradient) as an absolutely-positioned sibling *behind* everything
+   real inside `.wrap` — deliberately not inside `SearchGlow`'s own wrapper,
+   which measures its own `firstElementChild` to size its SVG and can't gain
+   an unrelated new child ahead of `.frame`. */
 .wrap {
+  position: relative;
   width: 100%;
+}
+
+/* Ambient purple/blue "AI mode" glow behind the whole search bar. Visible
+   whenever an AI interaction is active (the toggle, or a `/ai`-prefixed
+   query — see `data-ai-active` in SearchBar.jsx), not just while an answer
+   is loading — it's meant to read as "AI is available/in use here", with
+   the border light and completion pulse below layering the more specific
+   "working"/"done" signals on top of it.
+
+   Bleeds out past `.bar`'s own edges (negative `inset`) and sits behind it
+   (`z-index: -1`) so it reads as a soft glow radiating from behind the
+   glass rather than a shape competing with the pill for attention; the
+   `blur` softens it further into the background photo. Colors are a local,
+   one-off pairing (not promoted to `tokens.css`) — same precedent as
+   `GLOW_COLORS` above, a decorative choice specific to this one effect. */
+.wrap::before {
+  content: '';
+  position: absolute;
+  inset: -48px;
+  z-index: -1;
+  pointer-events: none;
+
+  background:
+    radial-gradient(ellipse at 28% 35%, color-mix(in srgb, #a78bfa 60%, transparent), transparent 60%),
+    radial-gradient(ellipse at 72% 65%, color-mix(in srgb, #7c9bff 60%, transparent), transparent 60%);
+  filter: blur(36px);
+
+  opacity: 0;
+  transition: opacity var(--duration-med) var(--ease);
+  animation: aiPrismDrift calc(var(--duration-slow) * 9) ease-in-out infinite alternate;
+}
+
+.wrap[data-ai-active]::before {
+  opacity: 1;
+}
+
+@keyframes aiPrismDrift {
+  from { transform: translate(-3%, -2%) scale(1); }
+  to { transform: translate(3%, 2%) scale(1.08); }
 }
 
 /* Wraps `.frame` — the glow (ui/SearchGlow.jsx) needs a real DOM ancestor
@@ -79,6 +124,107 @@
      a 25px curve on a much taller box would read as barely-rounded corners
      rather than a deliberate shape. */
   border-radius: 25px 25px var(--radius-lg) var(--radius-lg);
+}
+
+/* Registered so the browser can smoothly interpolate it as an angle rather
+   than treating it as an opaque string — that's what makes animating it (see
+   `aiBorderSpin` below) actually move the conic-gradient instead of jumping
+   straight from 0deg to 360deg. */
+@property --border-angle {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+
+/* A light traveling around `.frame`'s own border while an answer is being
+   fetched or typed — see `data-ai-status` in SearchBar.jsx. Deliberately a
+   plain CSS pseudo-element rather than an extension of `SearchGlow.jsx`'s
+   own SVG-perimeter-stroke system: that component already does one thing
+   (a pointer-following spotlight) with real geometry-tracking complexity,
+   and bolting a second, unrelated "AI status" animation onto it isn't worth
+   the coupling when the standard mask trick does the same job standalone.
+   `border-radius: inherit` picks up whatever `.frame` itself currently
+   computes to — the plain 25px pill or `[data-open]`'s taller shape above —
+   automatically, with no JS.
+
+   IMPORTANT: the light travels by animating the conic-gradient's own
+   `from` angle (`--border-angle`), never by `transform: rotate()`-ing the
+   pseudo-element itself. `.frame` is a wide, short box (a search bar, not
+   a square) — rotating a masked ring that shape sends its long straight
+   edges sweeping across the whole page at extreme angles, and the mask's
+   antialiasing seam along those edges shows up as a stray diagonal line
+   for most of the rotation (confirmed by disabling the mask and freezing
+   the transform independently while debugging). Animating the gradient's
+   angle instead keeps the box and its mask perfectly static — only the
+   colors inside the ring move.
+   The rotation itself runs unconditionally (cheap, and avoids restart
+   glitches each time it reappears); only `opacity` is gated on status. */
+.frame::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  z-index: -1;
+  border-radius: inherit;
+  padding: 2px;
+  pointer-events: none;
+
+  background: conic-gradient(
+    from var(--border-angle),
+    transparent 0%,
+    var(--accent) 20%,
+    #a78bfa 40%,
+    transparent 60%
+  );
+  /* Standard "ring only" trick: two masks XOR'd together leave just the
+     `padding`-wide band between them visible. */
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+
+  opacity: 0;
+  transition: opacity var(--duration-med) var(--ease);
+  animation: aiBorderSpin calc(var(--duration-slow) * 4) linear infinite;
+}
+
+.frame[data-ai-status='loading']::before,
+.frame[data-ai-status='typing']::before {
+  opacity: 1;
+}
+
+@keyframes aiBorderSpin {
+  to { --border-angle: 360deg; }
+}
+
+/* A soft green bloom behind `.frame`, pulsing in and fading back out once
+   the answer is ready — a separate layer from `.frame`'s own `box-shadow`
+   (used by `:focus-within` above) so a fill-forwards animation here can't
+   permanently override that rule's shadow once the pulse ends. Fires fresh
+   on every answer: `[data-ai-status='ready']` only starts matching at the
+   moment `status` actually changes to `'ready'`, so the one-shot animation
+   naturally replays without any JS remount trick. */
+.frame::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+}
+
+.frame[data-ai-status='ready']::after {
+  animation: aiReadyPulse calc(var(--duration-slow) * 2) var(--ease) forwards;
+}
+
+@keyframes aiReadyPulse {
+  0% { opacity: 0; box-shadow: 0 0 0 0 color-mix(in srgb, var(--success) 0%, transparent); }
+  35% { opacity: 1; box-shadow: 0 0 36px 6px color-mix(in srgb, var(--success) 45%, transparent); }
+  100% { opacity: 0; box-shadow: 0 0 36px 6px color-mix(in srgb, var(--success) 0%, transparent); }
 }
 
 /* The glass pill. It wraps the logo, the SearchField and the submit button,
@@ -512,7 +658,7 @@
   background: linear-gradient(
     100deg,
     transparent 30%,
-    color-mix(in srgb, var(--accent) 22%, transparent) 50%,
+    color-mix(in srgb, var(--accent) 10%, transparent) 50%,
     transparent 70%
   );
   background-size: 250% 100%;

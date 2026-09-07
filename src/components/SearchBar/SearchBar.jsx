@@ -279,7 +279,16 @@ export function SearchBar({ engineId }) {
   }
 
   return (
-    <div className={styles.wrap}>
+    <div
+      className={styles.wrap}
+      // Ambient ai-mode background (`.wrap::before`) — deliberately on
+      // `.wrap` rather than anything inside `SearchGlow`, since that
+      // component measures its own `firstElementChild` to size its SVG and
+      // shouldn't gain a new sibling ahead of `.frame`. "Active" means any
+      // AI interaction, not just the toggle — a `/ai`-prefixed query while
+      // the toggle still shows "Search" gets the same ambient glow.
+      data-ai-active={(mode === 'ai' || aiQuery.status !== 'idle') || undefined}
+    >
       {/* `SearchGlow` (ui/SearchGlow.jsx) draws a thin ring around `.frame`
           — the box that hugs the pill and, once suggestions are open, the
           dropdown too — which lights up near the pointer while `isFocused`.
@@ -293,8 +302,15 @@ export function SearchBar({ engineId }) {
             dropdown row below, around the suggestions too. Sizing comes from
             normal layout (no JS measurement) — `data-open` just switches the
             suggestions row's grid track between 0fr and 1fr, which animates
-            smoothly without knowing the list's height up front. */}
-        <div className={styles.frame} data-open={isOpen || undefined}>
+            smoothly without knowing the list's height up front.
+            `data-ai-status` drives the traveling border light (loading/
+            typing) and the green completion pulse (ready) — see
+            SearchBar.module.css. */}
+        <div
+          className={styles.frame}
+          data-open={isOpen || undefined}
+          data-ai-status={aiQuery.status !== 'idle' ? aiQuery.status : undefined}
+        >
           <div className={styles.bar}>
             <span className={styles.logo}>
               <EngineLogo engine={engine} size={18} />
