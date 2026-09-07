@@ -29,7 +29,16 @@ import { Button as AriaButton } from 'react-aria-components';
 import { Button } from '../ui/Button.jsx';
 import { Select } from '../ui/Select.jsx';
 import { Tooltip } from '../ui/Tooltip.jsx';
-import { CheckIcon, ChevronDownIcon, CloseIcon, DownloadIcon, EditIcon, PlusIcon, UploadIcon } from '../ui/icons.jsx';
+import {
+  CheckIcon,
+  ChevronDownIcon,
+  CloseIcon,
+  DownloadIcon,
+  EditIcon,
+  PlusIcon,
+  TrashIcon,
+  UploadIcon,
+} from '../ui/icons.jsx';
 import styles from './SettingsModal.module.css';
 
 const SORT_MODES = [
@@ -56,6 +65,7 @@ function moveGroup(groups, id, direction) {
  * @param {{id: string, name: string}[]} props.groups  already in display order
  * @param {(name: string) => Promise<void>} props.onCreateGroup
  * @param {(id: string, name: string) => Promise<void>} props.onRenameGroup
+ * @param {(id: string) => Promise<void>} props.onDeleteGroup
  * @param {(orderedIds: string[]) => void} props.onReorderGroups
  * @param {() => void} props.onExportBookmarks
  * @param {(file: File) => Promise<{imported: number, skipped: number, groupsCreated: number}>} props.onImportBookmarks
@@ -66,6 +76,7 @@ export function BookmarksTab({
   groups,
   onCreateGroup,
   onRenameGroup,
+  onDeleteGroup,
   onReorderGroups,
   onExportBookmarks,
   onImportBookmarks,
@@ -181,6 +192,19 @@ export function BookmarksTab({
                       onPress={() => onReorderGroups(moveGroup(groups, group.id, 1))}
                     >
                       <ChevronDownIcon size={14} />
+                    </AriaButton>
+                  </Tooltip>
+                  {/* Deleting the only remaining group would leave nowhere
+                      for bookmarks to live — see bookmarkGroupsService.js's
+                      deleteGroup. */}
+                  <Tooltip label="Delete">
+                    <AriaButton
+                      className={styles.reorderButton}
+                      isDisabled={groups.length <= 1}
+                      aria-label={`Delete ${group.name}`}
+                      onPress={() => onDeleteGroup(group.id)}
+                    >
+                      <TrashIcon size={14} />
                     </AriaButton>
                   </Tooltip>
                 </div>
