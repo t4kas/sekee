@@ -33,6 +33,14 @@
  * CALL THIS ONCE, IN `App.jsx`, AND PASS THE RESULT DOWN — the same rule
  * `useAuth` documents, for the same reason. Two copies would each run their
  * own migration of the same local data.
+ *
+ * `isReady` IS WHAT THE PRELOADER WAITS ON. It goes false the moment `user`
+ * changes and stays false through the dispose/migrate/adapter-build sequence
+ * below, only flipping back to true once `setActiveAdapter` resolves — which
+ * is itself after every subscriber (`useBookmarks`, `useSettings`, ...) has
+ * already received a fresh read from the new adapter. That ordering is what
+ * lets `App.jsx` hide the preloader without a beat of stale (logged-out)
+ * data flashing before the account's own data lands.
  */
 
 import { useEffect, useRef, useState } from 'react';
@@ -50,6 +58,11 @@ export function useSync(user) {
   // `user` directly.
   const [accountKey, setAccountKey] = useState(null);
 
+  // False for the whole dispose/migrate/adapter-build sequence below — see
+  // the header comment for why `App.jsx`'s preloader keys off this rather
+  // than off `user` or `accountKey` alone.
+  const [isReady, setIsReady] = useState(false);
+
   // What `storage` is currently pointed at, so a token refresh (which also
   // fires the auth listener) doesn't re-migrate or rebuild the adapter.
   const activeKey = useRef(undefined);
@@ -63,13 +76,15 @@ export function useSync(user) {
       if (activeKey.current === key) return;
       activeKey.current = key;
 
+      setIsReady(false);
       await activeAdapter.current?.dispose?.().catch(() => {});
       activeAdapter.current = null;
       setSyncError(null);
 
       if (!user) {
-        setActiveAdapter(createLocalStorageAdapter());
+        await setActiveAdapter(createLocalStorageAdapter());
         setAccountKey(null);
+        setIsReady(true);
         return;
       }
 
@@ -85,8 +100,9 @@ export function useSync(user) {
         onFlushError: (flushError) => setSyncError(flushError),
       });
       activeAdapter.current = adapter;
-      setActiveAdapter(adapter);
+      await setActiveAdapter(adapter);
       setAccountKey(`supabase:${user.id}`);
+      setIsReady(true);
     }
 
     apply();
@@ -110,5 +126,6 @@ export function useSync(user) {
      *  once the adapter it names is actually live. */
     accountKey,
     syncError,
+    isReady,
   };
 }

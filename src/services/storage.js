@@ -114,16 +114,25 @@ const activeSubscriptions = new Set();
  * a fresh `read()` to each of them, so components update right away instead
  * of waiting for their next edit.
  *
+ * Returns a promise that resolves once every re-delivered read has reached
+ * its callback — `useSync.js` awaits this before telling the rest of the app
+ * the switch is complete, so a caller that waits on it never observes a
+ * render where the adapter has changed but `useBookmarks`/`useSettings`
+ * still hold the outgoing adapter's data.
+ *
  * @param {ReturnType<typeof createLocalStorageAdapter>} adapter
+ * @returns {Promise<void>}
  */
 export function setActiveAdapter(adapter) {
   activeAdapter = adapter;
 
+  const redelivered = [];
   for (const entry of activeSubscriptions) {
     entry.unsubscribeFromAdapter();
     entry.unsubscribeFromAdapter = activeAdapter.subscribe(entry.key, entry.callback);
-    activeAdapter.read(entry.key).then(entry.callback);
+    redelivered.push(activeAdapter.read(entry.key).then(entry.callback));
   }
+  return Promise.all(redelivered).then(() => {});
 }
 
 /**

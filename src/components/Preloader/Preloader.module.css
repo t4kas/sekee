@@ -88,6 +88,14 @@
   }
 }
 
+.message {
+  margin: 0;
+
+  font-size: 0.9rem;
+  color: var(--fg-secondary);
+  text-shadow: var(--text-shadow);
+}
+
 @media (max-width: 560px) {
   .heading {
     font-size: 2rem;
