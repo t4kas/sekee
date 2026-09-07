@@ -2,8 +2,8 @@
  * Google Drive client
  * ---------------------------------------------------------------------------
  * The only file that knows Google's endpoints and holds its access token.
- * `googleDriveAdapter.js` asks it for an authorized `fetch` and doesn't think
- * about auth at all — same split as `dropboxClient.js`.
+ * `googleDriveFileStore.js` asks it for an authorized `fetch` and doesn't
+ * think about auth at all — same split as `dropboxClient.js`.
  *
  * WHY THIS DOESN'T LOOK LIKE THE DROPBOX ONE. Google's authorization-code
  * flow for a "Web application" client requires a client secret at the token
@@ -19,15 +19,18 @@
  * silently. That's the real cost of this provider versus Dropbox, and it's why
  * the adapter retries a 401 exactly once after forcing a renewal.
  *
- * SCOPE. `drive.appdata` grants access to a hidden per-app folder
- * (`appDataFolder`) and NOTHING else in the user's Drive — this code cannot
- * enumerate, read or write their real files, and the folder doesn't clutter
- * their file list. Deleting the app from their Google account takes it with
- * them.
+ * SCOPE. `drive.file` grants access to files this app itself creates or the
+ * user explicitly opens with it — and nothing else in their Drive. This code
+ * cannot enumerate, read or write anything it didn't put there.
  *
- * BEFORE PUBLISHING: `drive.appdata` is a sensitive scope. An unverified
- * OAuth client is capped at a test-user list, so going past your own circle
- * means putting the app through Google's verification.
+ * WHY `drive.file` AND NOT `drive.appdata`. The app-data folder is hidden
+ * from the user, which is right for a config blob and wrong for the files
+ * here: someone storing an image wants to see it in their own Drive, move
+ * it, and know it's theirs. `drive.file` also happens to be the scope Google
+ * treats as non-sensitive, so an OAuth client using it isn't held to the
+ * test-user cap that a sensitive scope carries. (Google does revise these
+ * classifications — the consent screen in the console shows the current one
+ * for whatever scopes you've added.)
  */
 
 const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID?.trim() || '';
@@ -36,7 +39,7 @@ const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID?.trim() || '';
 export const isGoogleDriveConfigured = Boolean(CLIENT_ID);
 
 const GIS_SCRIPT_URL = 'https://accounts.google.com/gsi/client';
-const SCOPE = 'https://www.googleapis.com/auth/drive.appdata';
+const SCOPE = 'https://www.googleapis.com/auth/drive.file';
 const USERINFO_URL = 'https://www.googleapis.com/oauth2/v3/userinfo';
 const REVOKE_URL = 'https://oauth2.googleapis.com/revoke';
 
@@ -190,7 +193,7 @@ export function createAuthorizedFetch(initialSession, onSessionChange) {
     inFlightRenewal ??= restore({ ...session, accessToken: null })
       .then((next) => {
         if (!next) {
-          throw new Error('Your Google Drive connection expired. Reconnect it in Settings → Sync.');
+          throw new Error('Your Google Drive connection expired. Reconnect it in Settings → Files.');
         }
         session = next;
         onSessionChange?.(next);
