@@ -37,6 +37,7 @@ import { useBookmarkGroups } from './hooks/useBookmarkGroups.js';
 import { useFavorites } from './hooks/useFavorites.js';
 import { useSettings } from './hooks/useSettings.js';
 import { useBackground } from './hooks/useBackground.js';
+import { useBackgroundTone } from './hooks/useBackgroundTone.js';
 import { clearPhotoCache } from './services/unsplashService.js';
 import { exportBookmarksToHtml, parseBookmarksHtml } from './services/bookmarkImportExport.js';
 import styles from './App.module.css';
@@ -84,6 +85,15 @@ export default function App() {
   // one — see useBackground.js.
   const { favorites, addFavorite, removeFavorite } = useFavorites(sync.accountKey);
   const { photo, isLoading: isLoadingBackground, refresh: refreshBackground } = useBackground(settings, favorites);
+  /** `'light'` when the photo behind the UI is bright enough that white text
+   *  on white glass would stop being readable. It's stamped onto `.app`
+   *  below, where the `[data-bg-tone='light']` block in tokens.css picks it
+   *  up and inverts the palette for everything inside — the search bar, the
+   *  weather widget, the group tabs, the bookmark tiles, the header controls
+   *  and the credit line all recolour together because they're all built from
+   *  those tokens. Dialogs and popovers are portalled outside this wrapper
+   *  and deliberately don't follow; see the block's own comment. */
+  const backgroundTone = useBackgroundTone(photo);
 
   /** Covers the app until every piece an *account* needs has settled, not
    *  just until `useAuth` knows whether one exists. Signed out, `sync.isReady`
@@ -238,9 +248,9 @@ export default function App() {
           warm when the cover comes off. */}
       {showPreloader && <Preloader message={isPreparingAccount ? 'Preparing your account…' : undefined} />}
 
-      <Background photo={photo} />
+      <Background photo={photo} tone={backgroundTone} />
 
-      <div className={styles.app}>
+      <div className={styles.app} data-bg-tone={backgroundTone}>
         <header className={styles.header}>
           <AccountControl user={user} signOut={signOut} onRequestSignIn={() => setIsAuthDialogOpen(true)} />
           <Tooltip label="Settings" placement="left">
