@@ -382,8 +382,13 @@
 
 /* Occupies the exact slot `.suggestions` does (see SearchBar.jsx's ternary)
    so it inherits the same fade/blur-in treatment on open — the two never
-   show at once. */
+   show at once. `position: relative` + `overflow: hidden` is what lets
+   `.sheen` below sweep across without spilling past the panel's own
+   rounded corners. */
 .aiPanel {
+  position: relative;
+  overflow: hidden;
+
   margin: 0;
   margin-top: var(--space-2);
   padding: var(--space-3);
@@ -398,7 +403,6 @@
   font-size: var(--text-md);
   line-height: 1.5;
   color: var(--fg-primary);
-  white-space: pre-wrap;
 
   opacity: 1;
   filter: blur(0);
@@ -412,12 +416,131 @@
   filter: blur(10px);
 }
 
-.aiPanel[data-variant='loading'] {
+.aiStatusText {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.aiPanel[data-variant='loading'] .aiStatusText {
   color: var(--fg-secondary);
 }
 
-.aiPanel[data-variant='error'] {
+.aiPanel[data-variant='error'] .aiStatusText {
   color: var(--danger);
+}
+
+/* --- Markdown content -------------------------------------------------------- */
+
+/* Gemini answers routinely come back with headings/bold/bullet lists (see
+   `react-markdown` in SearchBar.jsx) — these tighten that up to read as one
+   compact answer rather than a full document. Plain tag selectors nested
+   under the module's own `.aiMarkdown` class, not `:global()`: CSS Modules
+   only hashes the class itself, so `h3`/`p`/etc. here stay naturally scoped
+   to this panel. */
+.aiMarkdown {
+  white-space: normal;
+}
+
+.aiMarkdown > :first-child {
+  margin-top: 0;
+}
+
+.aiMarkdown > :last-child {
+  margin-bottom: 0;
+}
+
+.aiMarkdown p {
+  margin: 0 0 var(--space-2);
+}
+
+.aiMarkdown h1,
+.aiMarkdown h2,
+.aiMarkdown h3 {
+  margin: var(--space-3) 0 var(--space-2);
+  font-size: var(--text-md);
+  font-weight: 600;
+}
+
+.aiMarkdown ul,
+.aiMarkdown ol {
+  margin: 0 0 var(--space-2);
+  padding-left: 1.25em;
+}
+
+.aiMarkdown li {
+  margin: 0 0 var(--space-1);
+}
+
+.aiMarkdown strong {
+  font-weight: 600;
+  color: var(--fg-primary);
+}
+
+/* A thin blinking bar right after the last revealed character, while the
+   typewriter is still going — removed outright once `status` reaches
+   'ready' rather than just hidden, so it never lingers. */
+.caret {
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  margin-left: 1px;
+  vertical-align: text-bottom;
+
+  background: var(--accent);
+  animation: caretBlink 1s step-end infinite;
+}
+
+@keyframes caretBlink {
+  0%, 50% { opacity: 1; }
+  50.01%, 100% { opacity: 0; }
+}
+
+/* --- Loading/typing sheen ---------------------------------------------------- */
+
+/* A soft light sweep across the panel while an answer is being fetched or
+   typed out — same accent family `SearchGlow`'s focus ring uses, so it
+   reads as this app's own "working" state rather than a generic skeleton
+   loader. Duration comes from `--duration-slow` rather than a hardcoded
+   value so it automatically goes still under `prefers-reduced-motion:
+   reduce`, the same way every other animation in this stylesheet already
+   does via `tokens.css`'s zeroed durations. */
+.sheen {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+
+  background: linear-gradient(
+    100deg,
+    transparent 30%,
+    color-mix(in srgb, var(--accent) 22%, transparent) 50%,
+    transparent 70%
+  );
+  background-size: 250% 100%;
+  animation: sheenSweep calc(var(--duration-slow) * 2) linear infinite;
+}
+
+@keyframes sheenSweep {
+  from { background-position: 100% 0; }
+  to { background-position: -100% 0; }
+}
+
+/* --- Model attribution pill --------------------------------------------------- */
+
+/* Same glass-chip shell as WeatherWidget's `.pill`, scaled down — a small
+   trailing credit rather than a standalone control. */
+.modelPill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin-top: var(--space-2);
+
+  padding: 2px var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+
+  background: var(--surface);
+  font-size: var(--text-xs);
+  color: var(--fg-muted);
 }
 
 .suggestion {
