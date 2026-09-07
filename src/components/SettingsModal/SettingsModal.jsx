@@ -166,7 +166,6 @@ export function SettingsModal({
       icon: <CloudIcon size={16} />,
       panel: (
         <SyncTab
-          user={user}
           sync={sync}
           refreshBookmarks={refreshBookmarks}
           refreshSettings={refreshSettings}

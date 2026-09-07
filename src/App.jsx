@@ -45,10 +45,9 @@ export default function App() {
   // that matters. `user`/`signOut`/`signIn`/`signUp` flow down as props to
   // whatever needs them instead of each calling the hook itself.
   const { user, isLoading: isCheckingSession, signOut, signIn, signUp } = useAuth();
-  // `useSync` decides where data actually goes — this app's Supabase project,
-  // the user's own cloud storage, or just this device — and points `storage`
-  // at it. Called exactly once here for the same reason `useAuth` is; see its
-  // header. Everything below stays unaware of which destination won.
+  // `useSync` points `storage` at the account when signed in and at this
+  // device otherwise. Called exactly once here for the same reason `useAuth`
+  // is; see its header. Everything below stays unaware of which one won.
   const sync = useSync(user);
   const { settings, updateSettings, refresh: refreshSettings } = useSettings();
   const {
@@ -267,7 +266,7 @@ export default function App() {
             <PhotoCredit photo={photo} />
             <FavoriteButton
               photo={photo}
-              hasAccount={sync.providerId !== 'local'}
+              hasAccount={sync.isSignedIn}
               favorites={favorites}
               addFavorite={addFavorite}
               removeFavorite={removeFavorite}
