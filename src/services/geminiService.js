@@ -12,15 +12,16 @@
  * this is unsafe" header) — which is what makes this feature possible at all
  * in an app with no backend.
  *
- * `gemini-flash-latest` is an alias Google keeps pointed at its current
- * flash model, used instead of a pinned version so this doesn't quietly stop
- * working when a specific model version is retired.
+ * Pinned to `gemini-1.5-flash` rather than the newer `gemini-flash-latest`
+ * alias: this app runs on each user's own free-tier key with no server-side
+ * fallback if a request fails, so the model with the higher free-tier rate
+ * limit matters more here than always being on the newest flash model.
  */
 
 import { storage, StorageKeys } from './storage.js';
 
 const API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
-const MODEL = 'gemini-flash-latest';
+const MODEL = 'gemini-1.5-flash';
 
 /** @returns {Promise<string>} the stored key, or '' if none is set. */
 export async function getGeminiApiKey() {
