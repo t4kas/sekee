@@ -58,6 +58,36 @@ import styles from './SearchBar.module.css';
  *  works without touching the toggle at all. */
 const AI_PREFIX_RE = /^\/ai\s+(.+)$/i;
 
+/**
+ * Slash commands recognised while typing, independent of whether they're
+ * finished yet — this is what drives the input's highlight, the
+ * autocomplete suppression, and the hint chip in `.bar` (see
+ * `matchSlashCommand` below), not any single command's own submit routing
+ * (`AI_PREFIX_RE` above stays separate: it needs a *finished* command with
+ * text after it, this needs only the prefix itself so the hint appears the
+ * moment you start typing it). Adding a future command is a new entry here
+ * plus, if it does something on submit, its own check in `submitSearch` —
+ * this list only ever handles what the user sees while composing one.
+ */
+const SLASH_COMMANDS = [{ id: 'ai', prefix: '/ai', label: 'AI mode' }];
+
+/**
+ * Matches `value` against `SLASH_COMMANDS` — a command's prefix only counts
+ * if it's followed by whitespace or the end of the string, so "/aixyz"
+ * doesn't false-positive on "/ai" while it's still being typed.
+ * @param {string} value
+ * @returns {{ id: string, prefix: string, label: string, matchedText: string } | null}
+ */
+function matchSlashCommand(value) {
+  const trimmed = value.trimStart();
+  for (const command of SLASH_COMMANDS) {
+    const escapedPrefix = command.prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const match = trimmed.match(new RegExp(`^${escapedPrefix}(?=\\s|$)`, 'i'));
+    if (match) return { ...command, matchedText: match[0] };
+  }
+  return null;
+}
+
 // This app's accent (tokens.css's `--accent: #7cc0ff`) plus two related
 // blues, so `SearchGlow`'s ring reads as *this app's* color rather than an
 // arbitrary rainbow.
@@ -125,10 +155,19 @@ export function SearchBar({ engineId }) {
   const [renderedSuggestions, setRenderedSuggestions] = useState([]);
 
   const engine = getEngine(engineId);
-  // No suggestions fetched in AI mode — the dropdown is single-purpose per
-  // submission, and an AI question isn't something to autocomplete against
-  // the search engine's own suggest endpoint.
-  const suggestions = useSearchSuggestions(engineId, mode === 'search' ? typedQuery : '');
+  // Recomputed on every keystroke — cheap (one regex test per known
+  // command) and it needs to react the instant a recognisable prefix
+  // appears, not just once submitted.
+  const activeCommand = useMemo(() => matchSlashCommand(typedQuery), [typedQuery]);
+  // No suggestions fetched in AI mode, or while typing a recognised slash
+  // command — the dropdown is single-purpose per submission (an AI question
+  // isn't something to autocomplete against the search engine's own suggest
+  // endpoint), and a command's own hint chip replaces autocomplete entirely
+  // rather than competing with it.
+  const suggestions = useSearchSuggestions(
+    engineId,
+    mode === 'search' && !activeCommand ? typedQuery : '',
+  );
   const listboxId = useId();
 
   // The frame renders from this union: either the suggestions list or the AI
@@ -312,6 +351,12 @@ export function SearchBar({ engineId }) {
           data-open={isOpen || undefined}
           data-ai-status={aiQuery.status !== 'idle' ? aiQuery.status : undefined}
         >
+          {/* The traveling "thinking" border light. A real element (not
+              `.frame::before`) so its `blur` and its `mask` can live on
+              separate layers — see SearchBar.module.css's `.aiBorderGlow`
+              for why combining both on one element clips the blur. */}
+          <span className={styles.aiBorderGlow} aria-hidden="true" />
+
           <div className={styles.bar}>
             <span className={styles.logo}>
               <EngineLogo engine={engine} size={18} />
@@ -332,6 +377,13 @@ export function SearchBar({ engineId }) {
               <Input
                 className={styles.input}
                 placeholder={mode === 'ai' ? 'Ask AI anything' : `Search with ${engine.name}`}
+                // Made transparent by the matching CSS rule while a slash
+                // command is recognised — `.commandOverlay` below paints the
+                // same text back in its place with the command portion
+                // colored, since a native input can't style part of its own
+                // value. `caret-color` in that same rule keeps the cursor
+                // itself visible despite the invisible text.
+                data-command-active={Boolean(activeCommand) || undefined}
                 /* Focused on load so you can start typing the moment a tab opens
                    — the whole point of a new-tab page. */
                 autoFocus
@@ -387,7 +439,29 @@ export function SearchBar({ engineId }) {
                   </span>
                 </span>
               )}
+
+              {/* Repaints the field's own text with the recognised command
+                  portion highlighted — the real `<Input>` above goes
+                  transparent (see its `data-command-active`) so only this
+                  copy shows. Same layering trick as `.ghost` above (an
+                  overlay can't live inside a native input), just recreating
+                  the whole value instead of an unwritten suffix. `aria-hidden`
+                  for the same reason: the input already exposes this text to
+                  assistive tech via its own value. */}
+              {activeCommand && (
+                <span className={styles.commandOverlay} aria-hidden="true">
+                  <strong className={styles.commandHighlight}>{activeCommand.matchedText}</strong>
+                  {displayValue.slice(activeCommand.matchedText.length)}
+                </span>
+              )}
             </SearchField>
+
+            {/* Stands in for autocomplete while a recognised command is
+                being typed — a small persistent hint naming what's active
+                rather than a hover-triggered popover, so it's visible the
+                whole time you're composing the command, not just on an
+                extra hover. */}
+            {activeCommand && <span className={styles.commandHint}>{activeCommand.label}</span>}
 
             {/* Only rendered once a Gemini key is configured (Settings > AI)
                 — same "don't show what can't be used" convention as the
