@@ -324,6 +324,7 @@ export default function App() {
         groups={groups}
         onCreateGroup={createGroup}
         onRenameGroup={renameGroup}
+        onDeleteGroup={deleteGroup}
         onReorderGroups={reorderGroups}
         onExportBookmarks={handleExportBookmarks}
         onImportBookmarks={handleImportBookmarks}

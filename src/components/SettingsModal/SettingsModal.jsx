@@ -81,6 +81,7 @@ import styles from './SettingsModal.module.css';
  * @param {{id: string, name: string}[]} props.groups
  * @param {(name: string) => Promise<void>} props.onCreateGroup
  * @param {(id: string, name: string) => Promise<void>} props.onRenameGroup
+ * @param {(id: string) => Promise<void>} props.onDeleteGroup
  * @param {(orderedIds: string[]) => void} props.onReorderGroups
  * @param {() => void} props.onExportBookmarks
  * @param {(file: File) => Promise<{imported: number, skipped: number, groupsCreated: number}>} props.onImportBookmarks
@@ -104,6 +105,7 @@ export function SettingsModal({
   groups,
   onCreateGroup,
   onRenameGroup,
+  onDeleteGroup,
   onReorderGroups,
   onExportBookmarks,
   onImportBookmarks,
@@ -166,6 +168,7 @@ export function SettingsModal({
           groups={groups}
           onCreateGroup={onCreateGroup}
           onRenameGroup={onRenameGroup}
+          onDeleteGroup={onDeleteGroup}
           onReorderGroups={onReorderGroups}
           onExportBookmarks={onExportBookmarks}
           onImportBookmarks={onImportBookmarks}
