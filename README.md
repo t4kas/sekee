@@ -176,8 +176,9 @@ Files go to one of two places, chosen by who has to read them:
 - **The user's own files go to their own Google Drive or Dropbox.** Costs you
   nothing at any scale, since it's their storage and their quota, and the
   files stay theirs if they stop using this app. Setup for both — which
-  console, which scopes, which redirect URL — is in `.env.example`. Add a key,
-  restart the dev server, and a **Files** tab appears in Settings.
+  console, which scopes, and which URLs to register (they differ: Dropbox
+  wants a redirect URL, Google wants a bare origin) — is in `.env.example`.
+  Add a key, restart the dev server, and a **Files** tab appears in Settings.
 
 Google uses the `drive.file` scope, which only reaches files this app created
 and which Google treats as non-sensitive — so there's no verification process
