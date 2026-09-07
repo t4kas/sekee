@@ -111,16 +111,28 @@
    for most of the rotation (confirmed by disabling the mask and freezing
    the transform independently while debugging). Animating the gradient's
    angle instead keeps the box and its mask perfectly static — only the
-   colors inside the ring move.
+   colors inside the ring move. Because the box itself never moves or
+   rotates, it's safe to add `filter: blur()` on top (unlike mask-composite
+   itself — see `SearchGlow.jsx`'s own header on why *that* operation isn't
+   trusted in this codebase — a blur is just a pixel filter, not a second
+   compositing step, so it doesn't share that failure mode).
+
+   GLOW ON BOTH SIDES OF THE BORDER, WEIGHTED OUTWARD: matching the existing
+   pointer-hover glow's (`SearchGlow.jsx`) look — a soft blur straddling the
+   edge rather than a crisp line sitting flush against it. The masked band
+   itself spans from 9px outside `.frame`'s edge to 2px inside it (`inset`
+   vs `padding` below), then `filter: blur()` diffuses that hard-edged band
+   further in both directions — net effect is a glow visible on both sides
+   of the border, most of it outside.
    The rotation itself runs unconditionally (cheap, and avoids restart
    glitches each time it reappears); only `opacity` is gated on status. */
 .frame::before {
   content: '';
   position: absolute;
-  inset: -2px;
+  inset: -9px;
   z-index: -1;
   border-radius: inherit;
-  padding: 2px;
+  padding: 11px; /* 9px outside .frame's edge, 2px inside it */
   pointer-events: none;
 
   background: conic-gradient(
@@ -140,6 +152,7 @@
     linear-gradient(#fff 0 0) content-box,
     linear-gradient(#fff 0 0);
   mask-composite: exclude;
+  filter: blur(5px);
 
   opacity: 0;
   transition: opacity var(--duration-med) var(--ease);
