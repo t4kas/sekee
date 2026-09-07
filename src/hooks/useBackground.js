@@ -111,16 +111,28 @@ export function useBackground(settings, favorites) {
     // explicit "New photo".
   }, [settings.categoryId, settings.favoritesMode, settings.pinnedFavoriteId, refreshCount]);
 
-  // If the photo currently on screen falls out of `favorites` — unfavorited
-  // from the gallery, possibly the pinned one — replace it. This is the
-  // ONLY reason `useBackground` should react to `favorites` changing at
-  // all: adding a favorite (including the one already on screen) or
-  // removing some other one shouldn't disturb what's currently shown, which
-  // is exactly what happened when `favorites` sat in the effect above's own
-  // dependency list — any mutation re-ran `resolvePhoto` from scratch and
-  // could land on a different photo than the one just favorited.
+  // Re-pick when the photo on screen isn't one of the favorites but should
+  // be. Two cases: the current one fell out of `favorites` (unfavorited from
+  // the gallery, possibly the pinned one), or `favorites` hadn't loaded yet
+  // when the effect above ran, so it fell back to an Unsplash photo.
+  //
+  // This is the ONLY reason `useBackground` should react to `favorites`
+  // changing at all: adding a favorite (including the one already on screen)
+  // or removing some other one shouldn't disturb what's currently shown,
+  // which is exactly what happened when `favorites` sat in the effect
+  // above's own dependency list — any mutation re-ran `resolvePhoto` from
+  // scratch and could land on a different photo than the one just favorited.
+  //
+  // The `favorites.length === 0` guard is load-bearing: with nothing to
+  // switch to, `resolvePhoto` returns an Unsplash photo, which is by
+  // definition not in `favorites`, so bumping `refreshCount` would re-run
+  // this check against another non-favorite and spin forever — the page
+  // flashing through photo after photo. That is what happens on every load
+  // with `categoryId === 'favorites'` before `favorites` resolves, and
+  // forever for anyone who has favorited nothing.
   useEffect(() => {
     if (settings.categoryId !== 'favorites') return;
+    if (favorites.length === 0) return;
     if (!photo) return;
     if (favorites.some((favorite) => favorite.id === photo.id)) return;
 
