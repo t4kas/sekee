@@ -4,9 +4,9 @@
  * The gear button in the header opens this: a big modal with a sidebar of
  * category tabs on the left and that tab's controls on the right — replaces
  * the old small `SettingsPopover`. Built for exactly the tabs it has today
- * (Account, Preferences, Personalisation, Bookmarks, Sync, Weather); adding
- * another later is a one-line addition to the `<Tab>`/`<TabPanel>` pairs
- * below, not a redesign.
+ * (Account, Preferences, Personalisation, Bookmarks, Sync, Weather, AI);
+ * adding another later is a one-line addition to the `<Tab>`/`<TabPanel>`
+ * pairs below, not a redesign.
  *
  * Reuses `BookmarkDialog.module.css`'s `.overlay` for the dimmed/blurred
  * backdrop — every modal in this app shares that — but defines its own
@@ -45,6 +45,7 @@ import {
   CloudIcon,
   FolderIcon,
   SlidersIcon,
+  SparkleIcon,
   SunIcon,
   UserIcon,
 } from '../ui/icons.jsx';
@@ -58,6 +59,7 @@ import { BookmarksTab } from './BookmarksTab.jsx';
 import { SyncTab } from './SyncTab.jsx';
 import { FilesTab } from './FilesTab.jsx';
 import { WeatherTab } from './WeatherTab.jsx';
+import { AITab } from './AITab.jsx';
 import dialogStyles from '../BookmarkDialog/BookmarkDialog.module.css';
 import styles from './SettingsModal.module.css';
 
@@ -204,6 +206,12 @@ export function SettingsModal({
       label: 'Weather',
       icon: <SunIcon size={16} />,
       panel: <WeatherTab settings={settings} onSettingsChange={onSettingsChange} />,
+    },
+    {
+      id: 'ai',
+      label: 'AI',
+      icon: <SparkleIcon size={16} />,
+      panel: <AITab />,
     },
   ];
 

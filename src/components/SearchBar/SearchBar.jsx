@@ -39,15 +39,23 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Button, Input, Label, SearchField } from 'react-aria-components';
 import { EngineLogo } from './EngineLogo.jsx';
-import { SearchIcon } from '../ui/icons.jsx';
+import { SearchIcon, SparkleIcon } from '../ui/icons.jsx';
 import SearchGlow from '../ui/SearchGlow.jsx';
 import { buildSearchUrl, getEngine } from '../../services/searchEngines.js';
 import { tryNormaliseUrl } from '../../services/bookmarksService.js';
 import { getFaviconUrl } from '../../services/favicons.js';
+import { isGeminiConfigured } from '../../services/geminiService.js';
 import { useSearchSuggestions } from '../../hooks/useSearchSuggestions.js';
 import { useLinkPreview } from '../../hooks/useLinkPreview.js';
 import { useReorderFlip } from '../../hooks/useReorderFlip.js';
+import { useGeminiApiKey } from '../../hooks/useGeminiApiKey.js';
+import { useGeminiQuery } from '../../hooks/useGeminiQuery.js';
 import styles from './SearchBar.module.css';
+
+/** A submission starting with this (case-insensitively) always routes to
+ *  Gemini, regardless of the Search/Ask AI toggle — the escape hatch that
+ *  works without touching the toggle at all. */
+const AI_PREFIX_RE = /^\/ai\s+(.+)$/i;
 
 // This app's accent (tokens.css's `--accent: #7cc0ff`) plus two related
 // blues, so `SearchGlow`'s ring reads as *this app's* color rather than an
@@ -89,10 +97,22 @@ export function SearchBar({ engineId }) {
   const [typedQuery, setTypedQuery] = useState('');
   const [displayValue, setDisplayValue] = useState('');
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
-  const [isOpen, setIsOpen] = useState(false);
+  // Whether the *suggestions* dropdown wants to be open — kept separate from
+  // the AI panel's own visibility (`aiQuery.status !== 'idle'`) since the two
+  // share one frame but are driven by different things. `isOpen` below is
+  // the union the frame actually renders from.
+  const [isSuggestionsOpen, setIsSuggestionsOpen] = useState(false);
   // Drives SearchGlow's `focusActive` — the glow only ever shows while the
   // search bar is actually focused, never on a plain unfocused hover.
   const [isFocused, setIsFocused] = useState(false);
+  // 'search' sends Enter to the configured engine as always; 'ai' sends it to
+  // Gemini instead. The `/ai ` prefix bypasses this and always goes to
+  // Gemini, so this only decides what a *plain* submission does.
+  const [mode, setMode] = useState('search');
+
+  const geminiApiKey = useGeminiApiKey();
+  const isAIAvailable = isGeminiConfigured(geminiApiKey);
+  const aiQuery = useGeminiQuery();
   // What's actually on screen. This lags one step behind the hook's own
   // `suggestions` on the way *down* to empty: clearing the field zeroes
   // `suggestions` the instant the debounce fires, but if the dropdown
@@ -104,8 +124,16 @@ export function SearchBar({ engineId }) {
   const [renderedSuggestions, setRenderedSuggestions] = useState([]);
 
   const engine = getEngine(engineId);
-  const suggestions = useSearchSuggestions(engineId, typedQuery);
+  // No suggestions fetched in AI mode — the dropdown is single-purpose per
+  // submission, and an AI question isn't something to autocomplete against
+  // the search engine's own suggest endpoint.
+  const suggestions = useSearchSuggestions(engineId, mode === 'search' ? typedQuery : '');
   const listboxId = useId();
+
+  // The frame renders from this union: either the suggestions list or the AI
+  // panel can have it open, never determined by `mode` alone — the `/ai`
+  // prefix can trigger the AI panel while `mode` is still 'search'.
+  const isOpen = isSuggestionsOpen || aiQuery.status !== 'idle';
 
   // What the dropdown actually shows, and the order everything else works in
   // — the highlight index and arrow keys included, so they always mean the
@@ -130,7 +158,7 @@ export function SearchBar({ engineId }) {
   // A fresh batch of suggestions opens the dropdown (or closes it, if the
   // batch is empty) and drops any highlight left over from the last batch.
   useEffect(() => {
-    setIsOpen(suggestions.length > 0);
+    setIsSuggestionsOpen(suggestions.length > 0);
     setHighlightedIndex(-1);
     if (suggestions.length > 0) setRenderedSuggestions(suggestions);
   }, [suggestions]);
@@ -150,11 +178,21 @@ export function SearchBar({ engineId }) {
 
   /** Sends a query to the chosen engine — or, if `value` is itself a URL,
    *  navigates straight to it, the same way a browser's address bar treats
-   *  a typed domain differently from a typed search term. Replaces this
-   *  page either way. */
+   *  a typed domain differently from a typed search term — or, in AI mode
+   *  (or with a `/ai ` prefix), asks Gemini instead of navigating at all.
+   *  A plain-search submission replaces this page either way. */
   function submitSearch(value) {
     const trimmed = value.trim();
     if (!trimmed) return; // don't navigate on an empty search
+
+    const aiMatch = trimmed.match(AI_PREFIX_RE);
+    if (aiMatch || (mode === 'ai' && isAIAvailable)) {
+      const prompt = aiMatch ? aiMatch[1].trim() : trimmed;
+      if (!prompt) return;
+      setIsSuggestionsOpen(false);
+      aiQuery.ask(prompt, geminiApiKey);
+      return;
+    }
 
     const url = tryNormaliseUrl(trimmed);
 
@@ -167,6 +205,16 @@ export function SearchBar({ engineId }) {
     setTypedQuery(value);
     setDisplayValue(value);
     setHighlightedIndex(-1);
+    // Editing the query after an answer/error is showing means a fresh
+    // question is coming — hide the stale one rather than leaving it stuck
+    // alongside text that no longer matches it.
+    if (aiQuery.status !== 'idle') aiQuery.reset();
+  }
+
+  function toggleMode() {
+    setMode((current) => (current === 'search' ? 'ai' : 'search'));
+    aiQuery.reset();
+    setIsSuggestionsOpen(false);
   }
 
   /** Moves the highlight and fills the field with that suggestion's text
@@ -177,7 +225,7 @@ export function SearchBar({ engineId }) {
   }
 
   function selectSuggestion(suggestion) {
-    setIsOpen(false);
+    setIsSuggestionsOpen(false);
     submitSearch(suggestion);
   }
 
@@ -193,7 +241,22 @@ export function SearchBar({ engineId }) {
    * normal.
    */
   function handleInputKeyDownCapture(event) {
-    if (!isOpen || orderedSuggestions.length === 0) return;
+    if (!isOpen) return;
+
+    // Escape dismisses whichever of the two is open — the suggestions list
+    // or an AI answer/error/loading state — checked before the suggestion-
+    // only branches below since an AI panel has no suggestions to navigate.
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      event.stopPropagation();
+      setIsSuggestionsOpen(false);
+      aiQuery.reset();
+      setDisplayValue(typedQuery);
+      setHighlightedIndex(-1);
+      return;
+    }
+
+    if (orderedSuggestions.length === 0) return;
 
     // Tab takes the ghost completion, the way a shell or an address bar
     // does. Only ever when there's actually something to take: with no
@@ -211,12 +274,6 @@ export function SearchBar({ engineId }) {
       event.preventDefault();
       event.stopPropagation();
       highlight(highlightedIndex <= -1 ? orderedSuggestions.length - 1 : highlightedIndex - 1);
-    } else if (event.key === 'Escape') {
-      event.preventDefault();
-      event.stopPropagation();
-      setIsOpen(false);
-      setDisplayValue(typedQuery);
-      setHighlightedIndex(-1);
     }
   }
 
@@ -250,11 +307,13 @@ export function SearchBar({ engineId }) {
             >
               {/* Announced to screen readers, invisible on screen — the logo and
                   placeholder already make the purpose obvious visually. */}
-              <Label className="visually-hidden">Search the web</Label>
+              <Label className="visually-hidden">
+                {mode === 'ai' ? 'Ask AI a question' : 'Search the web'}
+              </Label>
 
               <Input
                 className={styles.input}
-                placeholder={`Search with ${engine.name}`}
+                placeholder={mode === 'ai' ? 'Ask AI anything' : `Search with ${engine.name}`}
                 /* Focused on load so you can start typing the moment a tab opens
                    — the whole point of a new-tab page. */
                 autoFocus
@@ -267,7 +326,11 @@ export function SearchBar({ engineId }) {
                 onKeyDownCapture={handleInputKeyDownCapture}
                 onFocus={() => setIsFocused(true)}
                 onBlur={() => {
-                  setIsOpen(false);
+                  // Only the suggestions dropdown closes on blur — an AI
+                  // answer stays up until dismissed (Escape) or superseded
+                  // by a new query, the same way a result you asked for
+                  // shouldn't vanish just because focus moved elsewhere.
+                  setIsSuggestionsOpen(false);
                   setIsFocused(false);
                 }}
                 role="combobox"
@@ -308,6 +371,22 @@ export function SearchBar({ engineId }) {
               )}
             </SearchField>
 
+            {/* Only rendered once a Gemini key is configured (Settings > AI)
+                — same "don't show what can't be used" convention as the
+                Files tab. Toggles which engine a plain Enter/submit goes to;
+                the `/ai ` prefix works either way. */}
+            {isAIAvailable && (
+              <Button
+                className={styles.modeToggle}
+                data-active={mode === 'ai' || undefined}
+                onPress={toggleMode}
+                aria-pressed={mode === 'ai'}
+                aria-label={mode === 'ai' ? 'Switch to web search' : 'Switch to Ask AI'}
+              >
+                <SparkleIcon size={16} />
+              </Button>
+            )}
+
             {/* React Aria's own Button rather than our styled wrapper, so this
                 file owns the styling outright — mixing the two would leave two
                 equal-specificity rules fighting over the size and shape. */}
@@ -315,7 +394,7 @@ export function SearchBar({ engineId }) {
               className={styles.submit}
               onPress={() => submitSearch(displayValue)}
               isDisabled={!displayValue.trim()}
-              aria-label={`Search with ${engine.name}`}
+              aria-label={mode === 'ai' ? 'Ask AI' : `Search with ${engine.name}`}
             >
               <SearchIcon size={19} />
             </Button>
@@ -326,6 +405,9 @@ export function SearchBar({ engineId }) {
               across an update keeps its DOM node (see the key below) instead
               of being torn down and popped back onto screen. */}
           <div className={styles.suggestionsRow}>
+            {aiQuery.status !== 'idle' ? (
+              <AIAnswerPanel query={aiQuery} />
+            ) : (
             <ul className={styles.suggestions} id={listboxId} role="listbox" ref={listRef}>
               {orderedSuggestions.map((suggestion, index) => {
                 const url = tryNormaliseUrl(suggestion);
@@ -378,11 +460,35 @@ export function SearchBar({ engineId }) {
                 );
               })}
             </ul>
+            )}
           </div>
         </div>
       </SearchGlow>
     </div>
   );
+}
+
+/**
+ * Fills the same dropdown slot the suggestions list normally occupies,
+ * while an "Ask AI" submission (toggle or `/ai` prefix) is loading, answered,
+ * or failed. Plain text only for now — a quick answer, not a rendered chat
+ * message.
+ * @param {{ query: ReturnType<typeof import('../../hooks/useGeminiQuery.js').useGeminiQuery> }} props
+ */
+function AIAnswerPanel({ query }) {
+  if (query.status === 'loading') {
+    return <p className={styles.aiPanel} data-variant="loading">Asking Gemini…</p>;
+  }
+
+  if (query.status === 'error') {
+    return (
+      <p className={styles.aiPanel} data-variant="error">
+        {query.errorMessage}
+      </p>
+    );
+  }
+
+  return <p className={styles.aiPanel}>{query.answer}</p>;
 }
 
 /**
