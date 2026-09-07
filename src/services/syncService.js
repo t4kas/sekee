@@ -37,6 +37,8 @@ import { createLocalStorageAdapter, StorageKeys } from './storage.js';
 import { DEFAULT_GROUP_ID } from './bookmarkGroupsService.js';
 import * as dropbox from './sync/dropboxClient.js';
 import { createDropboxAdapter } from './dropboxAdapter.js';
+import * as googleDrive from './sync/googleDriveClient.js';
+import { createGoogleDriveAdapter } from './googleDriveAdapter.js';
 
 /** Bring-your-own-cloud providers, in the order the Sync tab lists them. */
 export const byoProviders = [
@@ -49,6 +51,16 @@ export const byoProviders = [
     restore: dropbox.restore,
     disconnect: dropbox.disconnect,
     createAdapter: createDropboxAdapter,
+  },
+  {
+    id: 'google-drive',
+    label: 'Google Drive',
+    description: 'A hidden folder in your own Drive, not shown among your files.',
+    isConfigured: googleDrive.isGoogleDriveConfigured,
+    connect: googleDrive.connect,
+    restore: googleDrive.restore,
+    disconnect: googleDrive.disconnect,
+    createAdapter: createGoogleDriveAdapter,
   },
 ];
 

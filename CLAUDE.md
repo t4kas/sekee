@@ -17,17 +17,23 @@ automated checks — there is no `npm test`, and therefore no way to "run a sing
 test". Behavioural changes have to be verified by driving the running app in a
 browser. Both checks are fast; run them before committing.
 
-Unsplash backgrounds need `VITE_UNSPLASH_ACCESS_KEY` in `.env.local` (see
-`.env.example`). Without it the app falls back to bundled gradients, so the app
-runs fine unkeyed — but the Unsplash code paths are then never exercised. Vite
-reads env files only at startup, so restart the dev server after editing them.
+Every `VITE_*` key is optional and each one gates a feature: without
+`VITE_UNSPLASH_ACCESS_KEY` backgrounds fall back to bundled gradients, and
+without the Supabase / Dropbox / Google keys those sync destinations aren't
+offered at all. So the app runs fine unkeyed — but those code paths are then
+never exercised, and "works for me" may only mean "works with nothing
+configured". Vite reads env files only at startup, so restart the dev server
+after editing them.
 
 ## Architecture
 
 A personal new-tab page: React + Vite (plain JS), `react-aria-components` for
-UI primitives, CSS Modules for styling, `localStorage` for persistence. No
-backend, no router — a single page. `README.md` has the directory tree and
-setup instructions; this file covers what isn't visible from the structure.
+UI primitives, CSS Modules for styling. No router — a single page.
+`README.md` has the directory tree and setup instructions; this file covers
+what isn't visible from the structure.
+
+Persistence is `localStorage` by default and optionally one of three remote
+destinations — see "Storage destinations" below.
 
 ### The layering rule
 
@@ -40,11 +46,43 @@ makes the persistence layer swappable.
 
 Every service function is `async` even though `localStorage` is synchronous.
 That is deliberate: components already `await` their data and handle loading
-states, so moving to a real backend doesn't touch the UI. `src/services/storage.js`
-is the only file that knows `localStorage` exists, and the swap point is the
-single `export const storage = createLocalStorageAdapter()` line at its bottom.
-An adapter needs four methods: `read`, `write`, `remove`, `subscribe`
-(`subscribe` powers cross-tab sync via the `storage` event).
+states, so a remote backend doesn't touch the UI. An adapter needs four
+methods — `read`, `write`, `remove`, `subscribe` — plus `isRemote: true` if it
+stores data anywhere but this device.
+
+### Storage destinations
+
+`storage` in `src/services/storage.js` is a fixed-identity object delegating
+to whichever adapter is active; `setActiveAdapter` swaps it and re-points
+every live `subscribe()` at the new one. `useSync.js` is the only caller, and
+it decides between:
+
+- `createLocalStorageAdapter()` — the default.
+- `createSupabaseAdapter(userId)` — the app's own backend, while signed in.
+- `createDropboxAdapter` / `createGoogleDriveAdapter` — the user's own cloud
+  storage, one JSON file per key in an app-scoped folder. Registered in
+  `byoProviders` (`syncService.js`), which is the extension point for a
+  fourth.
+
+Two rules that are easy to break:
+
+- **`useAuth` handles authentication and nothing else.** Which adapter is
+  active is `useSync`'s job. They used to be one hook, and merging them again
+  makes Supabase the only possible destination.
+- **The bring-your-own-cloud adapters must stay wrapped in
+  `createCachedRemoteAdapter`.** Unwrapped, a cloud round-trip lands on the
+  first paint of a new-tab page, and `recordBookmarkOpened` — which rewrites
+  the whole bookmarks blob on every bookmark click — turns into one API
+  request per click. The wrapper serves reads from a local mirror, revalidates
+  in the background, and debounces writes. Its consequence: `write` resolves
+  before the upload happens, so remote failures reach `onFlushError` (shown in
+  the Sync tab) rather than the caller's `try`/`catch`.
+
+`DeviceLocalKeys` (photo pool, both weather caches) never leave the device,
+whatever adapter is active. `favoritesService.js` deliberately doesn't use
+`storage` — it calls `getRemoteAdapter()` and refuses when there isn't one, so
+"no account means no favorites" holds by construction rather than by
+convention.
 
 ### React Aria composition constraints
 
@@ -98,6 +136,29 @@ Prefer React Aria's state attributes (`data-hovered`, `data-pressed`,
 `data-focus-visible`, `data-selected`) over CSS pseudo-classes on React Aria
 elements — except where the component genuinely doesn't emit them, as with the
 GridList rows noted above.
+
+### OAuth without a backend
+
+Dropbox and Google Drive are reached with no server and no client secret,
+which constrains both flows:
+
+- **Dropbox** does full PKCE and `token_access_type=offline`, so it yields a
+  refresh token and the connection lasts indefinitely.
+- **Google** can't: its web authorization-code flow requires a client secret
+  at the token endpoint. It uses Google Identity Services' token client
+  instead, which gives a ~1h access token and no refresh token. Renewal is a
+  silent `prompt: ''` re-request, and `restore` returning null (rather than
+  throwing) is what produces a reconnect prompt instead of a broken page.
+
+The popup handback in `oauthPkce.js` carries a one-time authorization code.
+Its three checks — message origin, message source, and `state` — are all
+load-bearing, as is `postMessage`'s explicit target origin in
+`public/oauth-callback.html`. Don't relax any of them to `*`.
+
+Refresh tokens live in `localStorage` and are readable by any XSS on the
+origin. That's stated plainly in `dropboxClient.js` rather than hidden: with
+no backend a token has to be somewhere the page can reach, and the app-folder
+scope is what bounds the damage.
 
 ### Unsplash: quota and API compliance
 
