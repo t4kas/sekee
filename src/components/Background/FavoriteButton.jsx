@@ -2,10 +2,15 @@
  * FavoriteButton
  * ---------------------------------------------------------------------------
  * The heart in the bottom-right corner of the background photo. Always
- * shown on a real (non-fallback) photo, signed in or not — signed out,
- * pressing it opens the sign-in dialog instead of favoriting, so the button
- * stays a discoverable way *into* the feature rather than disappearing
+ * shown on a real (non-fallback) photo, with or without an account — without
+ * one, pressing it opens the sign-in dialog instead of favoriting, so the
+ * button stays a discoverable way *into* the feature rather than disappearing
  * until you already have an account.
+ *
+ * `hasAccount` rather than a Supabase user: favorites live wherever data is
+ * currently syncing (see `favoritesService.js`), so someone whose data goes
+ * to their own Dropbox can favorite photos without ever creating an account
+ * with this app.
  *
  * Renders nothing for the bundled gradient fallbacks (`photo.isFallback`):
  * they're not anyone's photograph, and everyone already gets them, so
@@ -20,19 +25,26 @@ import styles from './FavoriteButton.module.css';
 /**
  * @param {object} props
  * @param {Photo|null} props.photo
- * @param {object|null} props.user
+ * @param {boolean} props.hasAccount
  * @param {Photo[]} props.favorites
  * @param {(photo: Photo) => void} props.addFavorite
  * @param {(photoId: string) => void} props.removeFavorite
  * @param {() => void} props.onRequestSignIn
  */
-export function FavoriteButton({ photo, user, favorites, addFavorite, removeFavorite, onRequestSignIn }) {
+export function FavoriteButton({
+  photo,
+  hasAccount,
+  favorites,
+  addFavorite,
+  removeFavorite,
+  onRequestSignIn,
+}) {
   if (!photo || photo.isFallback) return null;
 
   const isFavorited = favorites.some((favorite) => favorite.id === photo.id);
 
   function handlePress() {
-    if (!user) {
+    if (!hasAccount) {
       onRequestSignIn();
       return;
     }

@@ -64,6 +64,7 @@ import styles from './SettingsModal.module.css';
  * @param {(credentials: {email: string, password: string}) => Promise<object>} props.signIn
  * @param {(credentials: {email: string, password: string}) => Promise<{needsEmailConfirmation: boolean}>} props.signUp
  * @param {() => Promise<void>} props.signOut
+ * @param {object} props.sync the `useSync` result — see App.jsx
  * @param {() => void} props.refreshBookmarks
  * @param {() => void} props.refreshSettings
  * @param {{id: string, name: string}[]} props.groups
@@ -85,6 +86,7 @@ export function SettingsModal({
   signIn,
   signUp,
   signOut,
+  sync,
   refreshBookmarks,
   refreshSettings,
   groups,
@@ -162,7 +164,14 @@ export function SettingsModal({
       id: 'sync',
       label: 'Sync',
       icon: <CloudIcon size={16} />,
-      panel: <SyncTab user={user} refreshBookmarks={refreshBookmarks} refreshSettings={refreshSettings} />,
+      panel: (
+        <SyncTab
+          user={user}
+          sync={sync}
+          refreshBookmarks={refreshBookmarks}
+          refreshSettings={refreshSettings}
+        />
+      ),
     },
     {
       id: 'weather',

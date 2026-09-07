@@ -18,6 +18,11 @@
  *                                              elsewhere; returns an
  *                                              unsubscribe function
  *
+ * An adapter that stores data somewhere other than this device also sets
+ * `isRemote: true` on itself. That's what `getRemoteAdapter()` below reads,
+ * and it's how `favoritesService.js` asks "is there an account behind this
+ * right now?" without naming any particular provider.
+ *
  * SWITCHING ADAPTERS AT RUNTIME
  * `storage` itself never changes identity — it's a small object that
  * delegates every call to whichever adapter is "active" right now. That's
@@ -141,6 +146,18 @@ export const storage = {
   },
 };
 
+/**
+ * Returns the active adapter only when it's a remote one, else `null`.
+ *
+ * The one supported way to ask "is this app currently backed by an account
+ * rather than just this browser?". `favoritesService.js` uses it to keep
+ * "signed out means no favorites" true by construction (see its header)
+ * without importing any specific provider's adapter.
+ */
+export function getRemoteAdapter() {
+  return activeAdapter.isRemote ? activeAdapter : null;
+}
+
 /** Keys we store, gathered in one place so they're easy to audit. */
 export const StorageKeys = {
   bookmarks: 'bookmarks',
@@ -151,3 +168,22 @@ export const StorageKeys = {
   weatherGeocodeCache: 'weather-geocode-cache',
   weatherCache: 'weather-cache',
 };
+
+/**
+ * Keys that stay on this device even when a remote adapter is active.
+ *
+ * All three are caches with their own TTLs, rebuilt from a network call
+ * whenever they're missing — carrying them between devices buys nothing and
+ * costs a write to somebody's cloud storage every time a 15-minute forecast
+ * expires. The weather ones matter most for the bring-your-own-cloud
+ * providers, where every write is an API request against a much tighter
+ * quota than Postgres's, but there's no reason to sync them anywhere.
+ *
+ * Every remote adapter passes these straight through to a private
+ * localStorage adapter instead of writing them to its backend.
+ */
+export const DeviceLocalKeys = new Set([
+  StorageKeys.photoCache,
+  StorageKeys.weatherGeocodeCache,
+  StorageKeys.weatherCache,
+]);

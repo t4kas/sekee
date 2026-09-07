@@ -26,14 +26,15 @@
  * displays them next to the form, and silently losing a save would be worse
  * than showing an error.
  *
- * WHAT DOESN'T SYNC: `StorageKeys.photoCache` is a device-local cache of
- * Unsplash photo pools, not user data worth carrying between devices — this
- * adapter passes it straight through to a plain localStorage adapter instead
- * of writing it to Postgres, so signing in never touches it.
+ * WHAT DOESN'T SYNC: `DeviceLocalKeys` (see `storage.js`) — the Unsplash
+ * photo pool and the two weather caches. They're caches with their own TTLs,
+ * not user data worth carrying between devices, so this adapter passes them
+ * straight through to a plain localStorage adapter and signing in never
+ * touches them.
  */
 
 import { supabase } from './supabaseClient.js';
-import { createLocalStorageAdapter, StorageKeys } from './storage.js';
+import { createLocalStorageAdapter, DeviceLocalKeys } from './storage.js';
 
 const TABLE = 'user_data';
 
@@ -42,8 +43,11 @@ export function createSupabaseAdapter(userId) {
   const localOnly = createLocalStorageAdapter();
 
   return {
+    /** Marks this as an account-backed adapter — see `getRemoteAdapter()`. */
+    isRemote: true,
+
     async read(key) {
-      if (key === StorageKeys.photoCache) return localOnly.read(key);
+      if (DeviceLocalKeys.has(key)) return localOnly.read(key);
       try {
         const { data, error } = await supabase
           .from(TABLE)
@@ -61,7 +65,7 @@ export function createSupabaseAdapter(userId) {
     },
 
     async write(key, value) {
-      if (key === StorageKeys.photoCache) return localOnly.write(key, value);
+      if (DeviceLocalKeys.has(key)) return localOnly.write(key, value);
 
       const { error } = await supabase
         .from(TABLE)
@@ -71,7 +75,7 @@ export function createSupabaseAdapter(userId) {
     },
 
     async remove(key) {
-      if (key === StorageKeys.photoCache) return localOnly.remove(key);
+      if (DeviceLocalKeys.has(key)) return localOnly.remove(key);
 
       try {
         const { error } = await supabase.from(TABLE).delete().eq('user_id', userId).eq('key', key);
@@ -81,10 +85,10 @@ export function createSupabaseAdapter(userId) {
       }
     },
 
-    /** No-op for synced keys: see the "sync model" note above. The photo
-     *  cache still uses localStorage's own cross-tab `storage` event. */
+    /** No-op for synced keys: see the "sync model" note above. Device-local
+     *  keys still use localStorage's own cross-tab `storage` event. */
     subscribe(key, callback) {
-      if (key === StorageKeys.photoCache) return localOnly.subscribe(key, callback);
+      if (DeviceLocalKeys.has(key)) return localOnly.subscribe(key, callback);
       return () => {};
     },
   };
