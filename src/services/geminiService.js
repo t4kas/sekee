@@ -12,16 +12,22 @@
  * this is unsafe" header) — which is what makes this feature possible at all
  * in an app with no backend.
  *
- * Pinned to `gemini-1.5-flash` rather than the newer `gemini-flash-latest`
- * alias: this app runs on each user's own free-tier key with no server-side
- * fallback if a request fails, so the model with the higher free-tier rate
- * limit matters more here than always being on the newest flash model.
+ * `gemini-flash-latest` is an alias Google keeps pointed at its current
+ * flash model, used instead of a pinned version so this doesn't quietly stop
+ * working when a specific model version is retired. This was briefly pinned
+ * to `gemini-1.5-flash` for its once-higher free-tier limit, but Google
+ * retired the whole 1.5 family on its 2025 deprecation schedule — every
+ * request to it now 404s, which `askGemini` used to fold into the same
+ * generic "check your API key" message as an actual bad key. Both the pin
+ * and that misdiagnosis are fixed here: back to the alias, and the error
+ * message below now surfaces whatever Gemini's own response body says
+ * instead of guessing from the HTTP status alone.
  */
 
 import { storage, StorageKeys } from './storage.js';
 
 const API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
-const MODEL = 'gemini-1.5-flash';
+const MODEL = 'gemini-flash-latest';
 
 /** @returns {Promise<string>} the stored key, or '' if none is set. */
 export async function getGeminiApiKey() {
@@ -143,9 +149,24 @@ export async function askGemini(prompt, apiKey, { signal } = {}) {
     if (response.status === 429) {
       throw new GeminiError('rate-limited', 'Gemini free-tier rate limit reached — try again in a bit.');
     }
-    // 400s here are almost always a malformed/rejected key; 403 an invalid
-    // or unauthorized one.
-    throw new GeminiError('invalid-key', 'Gemini rejected the request — check your API key in Settings.');
+
+    // Gemini's error responses are JSON bodies shaped like
+    // `{ error: { code, message, status } }` — surfacing that `message`
+    // directly is what tells a 404 ("model not found", e.g. a retired
+    // model — see this file's header) apart from a genuinely bad key
+    // (400/403, "API key not valid" or "permission denied"), rather than
+    // both landing on the same guessed-at "check your API key" text.
+    const detail = await response
+      .json()
+      .then((body) => body?.error?.message)
+      .catch(() => null);
+
+    throw new GeminiError(
+      'invalid-key',
+      detail
+        ? `Gemini rejected the request: ${detail}`
+        : `Gemini rejected the request (${response.status}) — check your API key in Settings.`,
+    );
   }
 
   const data = await response.json();
