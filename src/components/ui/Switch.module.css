@@ -1,0 +1,72 @@
+.field {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  cursor: pointer;
+}
+
+.field[data-disabled] {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.track {
+  flex-shrink: 0;
+  position: relative;
+  width: 38px;
+  height: 22px;
+  margin-top: 1px;
+
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+
+  transition:
+    background var(--duration-fast) var(--ease),
+    border-color var(--duration-fast) var(--ease);
+}
+
+.thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--fg-secondary);
+  transition:
+    transform var(--duration-fast) var(--ease),
+    background var(--duration-fast) var(--ease);
+}
+
+.field[data-selected] .track {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.field[data-selected] .thumb {
+  background: var(--accent-contrast);
+  transform: translateX(16px);
+}
+
+.field[data-focus-visible] .track {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.label {
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--fg-secondary);
+}
+
+.description {
+  font-size: var(--text-xs);
+  color: var(--fg-muted);
+}

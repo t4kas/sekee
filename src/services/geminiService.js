@@ -5,7 +5,9 @@
  * API free tier. Unlike Unsplash/Supabase/Dropbox, the key here is supplied
  * by the user at runtime (pasted into Settings) rather than baked in at
  * build time — see `StorageKeys.geminiApiKey` / `DeviceLocalKeys` in
- * `storage.js` for why it's stored outside the synced `settings` blob.
+ * `storage.js` for why it's stored outside the synced `settings` blob by
+ * default. `pullSyncedApiKey`/`setSyncedApiKey` below are the opt-in
+ * exception: the "save in my account" toggle in AITab.jsx, off by default.
  *
  * Gemini's `generateContent` endpoint is one of the few LLM APIs that allows
  * being called directly from a browser (no proxy, no special "I understand
@@ -28,7 +30,7 @@
  * instead of guessing from the HTTP status alone.
  */
 
-import { storage, StorageKeys } from './storage.js';
+import { storage, StorageKeys, getRemoteAdapter } from './storage.js';
 
 const API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 const MODEL = 'gemini-flash-lite-latest';
@@ -81,6 +83,66 @@ export function subscribeToGeminiApiKey(callback) {
 /** @param {string} apiKey */
 export function isGeminiConfigured(apiKey) {
   return Boolean(apiKey?.trim());
+}
+
+/**
+ * Everything below is the opt-in "save in my account" path — the
+ * `syncAiApiKey` setting in `settingsService.js`. It's deliberately separate
+ * from `setGeminiApiKey`/`getGeminiApiKey` above (which only ever touch this
+ * device, via `storage`'s `DeviceLocalKeys`) rather than folding the account
+ * copy into that same code path: the local copy always exists and is always
+ * what the search bar actually uses, so bugs in the opt-in sync path can't
+ * take the whole feature down with them — worst case, the account copy is
+ * stale or missing and the local one still works.
+ *
+ * Both functions call `getRemoteAdapter()` directly and write to it,
+ * bypassing `storage`'s own dispatcher entirely — same reason
+ * `favoritesService.js` does this rather than going through `storage`:
+ * `StorageKeys.geminiApiKey` is in `DeviceLocalKeys`, so a write through
+ * `storage` itself would always land locally no matter what, by design.
+ * Reaching the remote adapter directly is the only way to opt back in.
+ */
+
+/**
+ * Pulls the account-saved key down into local storage — for a device where
+ * the local copy is empty but the setting is already on (e.g. a second
+ * device, or after clearing site data), so enabling the toggle once
+ * elsewhere makes the key show up here too. Never overwrites a key that's
+ * already set locally, and does nothing when signed out or nothing was
+ * ever saved to the account.
+ */
+export async function pullSyncedApiKey() {
+  const remote = getRemoteAdapter();
+  if (!remote) return;
+
+  const local = await storage.read(StorageKeys.geminiApiKey);
+  if (typeof local === 'string' && local) return;
+
+  const remoteValue = await remote.read(StorageKeys.geminiApiKey);
+  if (typeof remoteValue === 'string' && remoteValue) {
+    await storage.write(StorageKeys.geminiApiKey, remoteValue);
+    for (const listener of localListeners) listener(remoteValue);
+  }
+}
+
+/**
+ * Pushes the current key to the account, or clears the account's copy when
+ * called with an empty string — used both when the key itself changes while
+ * the toggle is on, and when the toggle is switched off (to actually scrub
+ * it from the account rather than just stopping future writes). A no-op
+ * when signed out; there's no account to save it to.
+ * @param {string} apiKey
+ */
+export async function setSyncedApiKey(apiKey) {
+  const remote = getRemoteAdapter();
+  if (!remote) return;
+
+  const trimmed = apiKey.trim();
+  if (trimmed) {
+    await remote.write(StorageKeys.geminiApiKey, trimmed);
+  } else {
+    await remote.remove(StorageKeys.geminiApiKey);
+  }
 }
 
 /**

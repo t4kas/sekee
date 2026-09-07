@@ -183,8 +183,15 @@ export const StorageKeys = {
  * `geminiApiKey` is here for a different reason: it's a credential, not a
  * cache, and `settingsService.js`'s synced `settings` blob is exactly what
  * gets replicated to Postgres when signed in — a Gemini key has no business
- * sitting in that blob in plaintext. Same posture as the Dropbox refresh
- * token in `dropboxClient.js`: it stays wherever the browser that owns it is.
+ * ending up there just by existing, the way it would if it were a normal
+ * setting. Same posture as the Dropbox refresh token in `dropboxClient.js`:
+ * it stays on this device by default. Unlike that one, this key does have
+ * an explicit opt-in past that default — the "save in my account" toggle in
+ * AITab.jsx — but that path (`geminiService.js`'s `pullSyncedApiKey`/
+ * `setSyncedApiKey`) goes around this list entirely, writing straight to
+ * `getRemoteAdapter()` rather than through `storage`. This list is what
+ * makes that opt-in necessary in the first place: a write through `storage`
+ * itself always lands locally for a key listed here, full stop.
  *
  * Every remote adapter passes these straight through to a private
  * localStorage adapter instead of writing them to its backend.

@@ -211,7 +211,7 @@ export function SettingsModal({
       id: 'ai',
       label: 'AI',
       icon: <SparkleIcon size={16} />,
-      panel: <AITab />,
+      panel: <AITab user={user} settings={settings} onSettingsChange={onSettingsChange} />,
     },
   ];
 

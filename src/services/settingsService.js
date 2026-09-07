@@ -26,6 +26,12 @@ export const DEFAULT_SETTINGS = {
   // disables dragging since there's nothing left to manually order. One
   // global mode rather than per-group, see BookmarkGrid.jsx.
   bookmarkSortMode: 'custom', // 'custom' | 'recent'
+  // Opt-in only: whether the Gemini API key is also saved to the user's
+  // account (Supabase), not just this device — see `geminiService.js`'s
+  // `pullSyncedApiKey`/`setSyncedApiKey`, and `storage.js`'s
+  // `DeviceLocalKeys` for why the key itself stays out of this same
+  // settings blob rather than travelling with it automatically.
+  syncAiApiKey: false,
 };
 
 /**
