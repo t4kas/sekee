@@ -281,12 +281,13 @@ export function SearchBar({ engineId }) {
   return (
     <div
       className={styles.wrap}
-      // Ambient ai-mode background (`.wrap::before`) — deliberately on
-      // `.wrap` rather than anything inside `SearchGlow`, since that
-      // component measures its own `firstElementChild` to size its SVG and
-      // shouldn't gain a new sibling ahead of `.frame`. "Active" means any
-      // AI interaction, not just the toggle — a `/ai`-prefixed query while
-      // the toggle still shows "Search" gets the same ambient glow.
+      // Tints `.bar`'s own fill purple/blue while an AI interaction is
+      // active (see the matching selector in SearchBar.module.css) — set
+      // here on `.wrap` rather than `.frame` since it's the one ancestor
+      // outside `SearchGlow`'s own wrapper, which measures its
+      // `firstElementChild` to size its SVG. "Active" means any AI
+      // interaction, not just the toggle — a `/ai`-prefixed query while the
+      // toggle still shows "Search" gets the same tint.
       data-ai-active={(mode === 'ai' || aiQuery.status !== 'idle') || undefined}
     >
       {/* `SearchGlow` (ui/SearchGlow.jsx) draws a thin ring around `.frame`

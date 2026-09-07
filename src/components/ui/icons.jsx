@@ -166,10 +166,16 @@ export const SlidersIcon = (props) => (
   </Svg>
 );
 
+/* A four-point "sparkle" — the shape most AI features use (Gemini, Copilot,
+ * etc.) rather than a generic asterisk or magic wand: four long points at
+ * N/E/S/W with a pinched waist between each. Straight edges rather than the
+ * usual solid-filled glyph's curved concave sides, so it reads as one
+ * outline in this file's thin-stroke style — `stroke-linejoin="round"` on
+ * the shared `<Svg>` softens the waist and tip corners just enough to keep
+ * it from looking like a sharp compass rose. */
 export const SparkleIcon = (props) => (
   <Svg {...props}>
-    <path d="M12 3v4M12 17v4M3 12h4M17 12h4" />
-    <path d="M12 8.5 13 11l2.5 1-2.5 1-1 2.5-1-2.5-2.5-1 2.5-1z" />
+    <path d="M12 2 14.1 9.9 22 12 14.1 14.1 12 22 9.9 14.1 2 12 9.9 9.9 Z" />
   </Svg>
 );
 

@@ -1,50 +1,5 @@
-/* `position: relative` is only here to host `.wrap::before` (the ambient
-   AI-mode gradient) as an absolutely-positioned sibling *behind* everything
-   real inside `.wrap` — deliberately not inside `SearchGlow`'s own wrapper,
-   which measures its own `firstElementChild` to size its SVG and can't gain
-   an unrelated new child ahead of `.frame`. */
 .wrap {
-  position: relative;
   width: 100%;
-}
-
-/* Ambient purple/blue "AI mode" glow behind the whole search bar. Visible
-   whenever an AI interaction is active (the toggle, or a `/ai`-prefixed
-   query — see `data-ai-active` in SearchBar.jsx), not just while an answer
-   is loading — it's meant to read as "AI is available/in use here", with
-   the border light and completion pulse below layering the more specific
-   "working"/"done" signals on top of it.
-
-   Bleeds out past `.bar`'s own edges (negative `inset`) and sits behind it
-   (`z-index: -1`) so it reads as a soft glow radiating from behind the
-   glass rather than a shape competing with the pill for attention; the
-   `blur` softens it further into the background photo. Colors are a local,
-   one-off pairing (not promoted to `tokens.css`) — same precedent as
-   `GLOW_COLORS` above, a decorative choice specific to this one effect. */
-.wrap::before {
-  content: '';
-  position: absolute;
-  inset: -48px;
-  z-index: -1;
-  pointer-events: none;
-
-  background:
-    radial-gradient(ellipse at 28% 35%, color-mix(in srgb, #a78bfa 60%, transparent), transparent 60%),
-    radial-gradient(ellipse at 72% 65%, color-mix(in srgb, #7c9bff 60%, transparent), transparent 60%);
-  filter: blur(36px);
-
-  opacity: 0;
-  transition: opacity var(--duration-med) var(--ease);
-  animation: aiPrismDrift calc(var(--duration-slow) * 9) ease-in-out infinite alternate;
-}
-
-.wrap[data-ai-active]::before {
-  opacity: 1;
-}
-
-@keyframes aiPrismDrift {
-  from { transform: translate(-3%, -2%) scale(1); }
-  to { transform: translate(3%, 2%) scale(1.08); }
 }
 
 /* Wraps `.frame` — the glow (ui/SearchGlow.jsx) needs a real DOM ancestor
@@ -253,6 +208,26 @@
 
 .bar:hover {
   background: var(--surface-hover);
+}
+
+/* The pill's own fill while an AI interaction is active (the toggle, or a
+   `/ai`-prefixed query — see `data-ai-active` in SearchBar.jsx) — replaces
+   the plain glass tint outright rather than glowing behind it, per
+   feedback that a soft halo bleeding out past the bar read as too much.
+   Layered over `var(--surface)` (rather than replacing it outright) so
+   `backdrop-filter` still frosts the photo underneath the same way it
+   always does; the gradient just tints that glass instead of leaving it
+   neutral. Colors are a local, one-off pairing (not promoted to
+   `tokens.css`) — same precedent as `GLOW_COLORS` above. */
+.wrap[data-ai-active] .bar,
+.wrap[data-ai-active] .bar:hover {
+  background:
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, #a78bfa 45%, transparent),
+      color-mix(in srgb, #7c9bff 45%, transparent)
+    ),
+    var(--surface);
 }
 
 /* `.bar` is a plain div, so this is the standard CSS pseudo-class rather
