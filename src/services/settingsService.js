@@ -19,6 +19,10 @@ export const DEFAULT_SETTINGS = {
   // only meaningful when it's selected. See `useBackground.js`.
   favoritesMode: 'shuffle', // 'shuffle' | 'fixed'
   pinnedFavoriteId: null, // which favorite to always show when 'fixed'
+  // `categoryId: 'custom'` is the second sentinel: show an image the user
+  // uploaded to their own cloud storage (see `customBackgroundService.js`).
+  // Only meaningful then — null means "shuffle among the uploads".
+  customBackgroundId: null,
   weatherLocation: '', // empty = widget is hidden, see WeatherWidget.jsx
   weatherUnits: 'celsius', // 'celsius' | 'fahrenheit'
   // 'custom' respects each bookmark's `order` (drag-and-drop, see

@@ -220,6 +220,19 @@ where you remove any).
 Favorites are stored the same way as bookmarks and settings — no separate
 table, and no separate file.
 
+**Uploading your own background** works the other way round, and needs storage
+connected rather than an account. Settings → Personalisation → **Uploads**
+takes an image from your computer and puts it in the Drive or Dropbox you
+linked on the Files tab — your account, your quota, and still yours if you
+stop using this app. Uploaded images then appear as "My Uploads" in the
+Background dropdown, shuffling between them or pinned to whichever one you
+click.
+
+Only the *record* of an upload (its name and path) syncs with your bookmarks
+and settings; the image itself never passes through this app's storage. On a
+device where you haven't linked the account holding it, the tile says so and
+the background falls back to an ordinary photo category.
+
 ---
 
 ## How the code is organised
@@ -247,6 +260,8 @@ src/
 │   ├── supabaseAdapter.js       the signed-in storage adapter
 │   ├── authService.js           sign up / in / out, wraps Supabase auth
 │   ├── favoritesService.js      favorited photos — cloud-only, no local mode
+│   ├── customBackgroundService.js  uploaded backgrounds: image in the user's
+│   │                            own storage, record alongside settings
 │   ├── favicons.js              builds favicon image URLs
 │   ├── searchEngines.js         the list of search engines
 │   └── backgroundCategories.js  the list of photo categories
@@ -257,7 +272,9 @@ src/
 │   ├── useBackground.js
 │   ├── useWeather.js
 │   ├── useAuth.js               also points `storage` at the right adapter
-│   └── useFavorites.js
+│   ├── useFavorites.js
+│   ├── useFileProvider.js       links Drive/Dropbox, registers the file store
+│   └── useCustomBackgrounds.js  the user's uploaded backgrounds
 │
 ├── components/
 │   ├── ui/                  small styled wrappers around React Aria
@@ -271,8 +288,10 @@ src/
 │   ├── SettingsModal/        sidebar-tabbed settings: Account, Preferences,
 │   │                         Personalisation, Sync, Weather
 │   ├── Account/              sign-in button + auth dialog
-│   └── Favorites/            the favorites grid (Personalisation's Favorites
-│                             sub-tab)
+│   ├── Favorites/            the favorites grid (Personalisation's Favorites
+│   │                         sub-tab)
+│   └── CustomBackgrounds/    upload + manage your own backgrounds
+│                             (Personalisation's Uploads sub-tab)
 │
 └── styles/
     ├── tokens.css           every colour, size and timing, as CSS variables

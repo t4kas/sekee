@@ -78,6 +78,7 @@ import styles from './SettingsModal.module.css';
  * @param {() => Promise<void>} props.signOut
  * @param {object} props.sync the `useSync` result — see App.jsx
  * @param {object} props.files the `useFileProvider` result — see App.jsx
+ * @param {object} props.custom the `useCustomBackgrounds` result — see App.jsx
  * @param {() => void} props.refreshBookmarks
  * @param {() => void} props.refreshSettings
  * @param {{id: string, name: string}[]} props.groups
@@ -102,6 +103,7 @@ export function SettingsModal({
   signOut,
   sync,
   files,
+  custom,
   refreshBookmarks,
   refreshSettings,
   groups,
@@ -156,6 +158,8 @@ export function SettingsModal({
           user={user}
           favorites={favorites}
           removeFavorite={removeFavorite}
+          custom={custom}
+          files={files}
         />
       ),
     },

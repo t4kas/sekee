@@ -18,6 +18,13 @@
  * a second small select for shuffle-vs-fixed. The Favorites sub-tab always
  * exists (switching to it doesn't depend on `categoryId`), so you can build
  * up or manage a list before ever actually switching the background to it.
+ *
+ * UPLOADS: the same shape again, one sentinel along — "My Uploads" joins the
+ * Background select once there's at least one, and the Uploads sub-tab (see
+ * `CustomBackgrounds.jsx`) is always there to add the first. The images go
+ * to the user's own Drive or Dropbox rather than to this app, which is why
+ * that sub-tab, not this one, is where the "connect storage first" case is
+ * handled.
  */
 
 import { useState } from 'react';
@@ -26,6 +33,7 @@ import { Button } from '../ui/Button.jsx';
 import { Select } from '../ui/Select.jsx';
 import { RefreshIcon } from '../ui/icons.jsx';
 import { FavoritesGrid } from '../Favorites/FavoritesGrid.jsx';
+import { CustomBackgrounds } from '../CustomBackgrounds/CustomBackgrounds.jsx';
 import { BACKGROUND_CATEGORIES } from '../../services/backgroundCategories.js';
 import { isUnsplashConfigured } from '../../services/unsplashService.js';
 import styles from './SettingsModal.module.css';
@@ -43,19 +51,35 @@ const FAVORITES_MODES = [
  * @param {object|null} props.user
  * @param {Photo[]} props.favorites
  * @param {(photoId: string) => void} props.removeFavorite
+ * @param {object} props.custom the `useCustomBackgrounds` result — see App.jsx
+ * @param {object} props.files the `useFileProvider` result — see App.jsx
  */
-export function PersonalisationTab({ settings, onSettingsChange, onNewPhoto, user, favorites, removeFavorite }) {
+export function PersonalisationTab({
+  settings,
+  onSettingsChange,
+  onNewPhoto,
+  user,
+  favorites,
+  removeFavorite,
+  custom,
+  files,
+}) {
   const [subTab, setSubTab] = useState('background');
 
-  const backgroundItems =
-    user && favorites.length > 0
-      ? [...BACKGROUND_CATEGORIES, { id: 'favorites', name: 'My Favorites' }]
-      : BACKGROUND_CATEGORIES;
+  const backgroundItems = [
+    ...BACKGROUND_CATEGORIES,
+    ...(user && favorites.length > 0 ? [{ id: 'favorites', name: 'My Favorites' }] : []),
+    ...(custom.backgrounds.length > 0 ? [{ id: 'custom', name: 'My Uploads' }] : []),
+  ];
 
   const isShowingFavorites = settings.categoryId === 'favorites';
   // "New photo" would be a visible no-op when pinned to one specific
-  // favorite — nothing left for it to change.
-  const isNewPhotoDisabled = isShowingFavorites && settings.favoritesMode === 'fixed';
+  // favorite or upload — nothing left for it to change.
+  const isNewPhotoDisabled =
+    (isShowingFavorites && settings.favoritesMode === 'fixed') ||
+    (settings.categoryId === 'custom' && Boolean(settings.customBackgroundId));
+
+  const connectedProvider = files.available.find((provider) => provider.id === files.providerId);
 
   return (
     <Tabs className={styles.section} selectedKey={subTab} onSelectionChange={setSubTab}>
@@ -65,6 +89,9 @@ export function PersonalisationTab({ settings, onSettingsChange, onNewPhoto, use
         </Tab>
         <Tab id="favorites" className={styles.subTabButton}>
           Favorites{favorites.length > 0 ? ` (${favorites.length})` : ''}
+        </Tab>
+        <Tab id="uploads" className={styles.subTabButton}>
+          Uploads{custom.backgrounds.length > 0 ? ` (${custom.backgrounds.length})` : ''}
         </Tab>
       </TabList>
 
@@ -114,6 +141,16 @@ export function PersonalisationTab({ settings, onSettingsChange, onNewPhoto, use
             click the heart on any photo to save it here.
           </p>
         )}
+      </TabPanel>
+
+      <TabPanel id="uploads" className={styles.section}>
+        <CustomBackgrounds
+          settings={settings}
+          onSettingsChange={onSettingsChange}
+          custom={custom}
+          connectedProviderId={files.providerId}
+          storageLabel={connectedProvider?.label ?? null}
+        />
       </TabPanel>
     </Tabs>
   );
