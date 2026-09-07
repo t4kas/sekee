@@ -45,6 +45,11 @@ import { migrateLocalDataToRemote } from '../services/syncService.js';
 export function useSync(user) {
   const [syncError, setSyncError] = useState(null);
 
+  // Set only once `storage` is actually pointed at the right adapter — see
+  // the note on `accountKey` below for why this can't just be derived from
+  // `user` directly.
+  const [accountKey, setAccountKey] = useState(null);
+
   // What `storage` is currently pointed at, so a token refresh (which also
   // fires the auth listener) doesn't re-migrate or rebuild the adapter.
   const activeKey = useRef(undefined);
@@ -64,6 +69,7 @@ export function useSync(user) {
 
       if (!user) {
         setActiveAdapter(createLocalStorageAdapter());
+        setAccountKey(null);
         return;
       }
 
@@ -80,6 +86,7 @@ export function useSync(user) {
       });
       activeAdapter.current = adapter;
       setActiveAdapter(adapter);
+      setAccountKey(`supabase:${user.id}`);
     }
 
     apply();
@@ -88,8 +95,20 @@ export function useSync(user) {
   return {
     isSignedIn: Boolean(user),
     /** Identifies the account data flows to, or null when signed out.
-     *  `useFavorites` reloads on this. */
-    accountKey: user ? `supabase:${user.id}` : null,
+     *  `useFavorites` reloads on this.
+     *
+     *  Deliberately NOT derived straight from `user` (i.e. NOT
+     *  `user ? \`supabase:${user.id}\` : null`) — `user` flips the moment
+     *  `useAuth` resolves, but pointing `storage` at the matching adapter
+     *  above is async (it awaits the local->remote migration). A value
+     *  computed directly from `user` would change one render before the
+     *  swap actually lands, so `useFavorites` would call `getRemoteAdapter()`
+     *  while it's still returning the outgoing (local) adapter, read an
+     *  empty list, and never retry — which is also why a favorited
+     *  background wouldn't show up on load. Setting this from inside
+     *  `apply()`, after `setActiveAdapter` runs, makes sure it only changes
+     *  once the adapter it names is actually live. */
+    accountKey,
     syncError,
   };
 }
