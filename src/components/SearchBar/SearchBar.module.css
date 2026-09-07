@@ -92,47 +92,36 @@
 }
 
 /* A light traveling around `.frame`'s own border while an answer is being
-   fetched or typed — see `data-ai-status` in SearchBar.jsx. Deliberately a
-   plain CSS pseudo-element rather than an extension of `SearchGlow.jsx`'s
-   own SVG-perimeter-stroke system: that component already does one thing
-   (a pointer-following spotlight) with real geometry-tracking complexity,
-   and bolting a second, unrelated "AI status" animation onto it isn't worth
-   the coupling when the standard mask trick does the same job standalone.
+   fetched or typed — see `data-ai-status` in SearchBar.jsx, and the
+   `.aiBorderGlow` span it's rendered onto (a real element, first child of
+   `.frame`, not a pseudo-element of `.frame` itself — see that span's own
+   rule below for why). Deliberately plain CSS rather than an extension of
+   `SearchGlow.jsx`'s own SVG-perimeter-stroke system: that component
+   already does one thing (a pointer-following spotlight) with real
+   geometry-tracking complexity, and bolting a second, unrelated "AI status"
+   animation onto it isn't worth the coupling when the standard mask trick
+   does the same job standalone.
    `border-radius: inherit` picks up whatever `.frame` itself currently
    computes to — the plain 25px pill or `[data-open]`'s taller shape above —
-   automatically, with no JS.
+   automatically, with no JS (the span below also has `border-radius:
+   inherit`, so this chains through it to `.frame`'s own value).
 
    IMPORTANT: the light travels by animating the conic-gradient's own
-   `from` angle (`--border-angle`), never by `transform: rotate()`-ing the
-   pseudo-element itself. `.frame` is a wide, short box (a search bar, not
-   a square) — rotating a masked ring that shape sends its long straight
-   edges sweeping across the whole page at extreme angles, and the mask's
-   antialiasing seam along those edges shows up as a stray diagonal line
-   for most of the rotation (confirmed by disabling the mask and freezing
-   the transform independently while debugging). Animating the gradient's
-   angle instead keeps the box and its mask perfectly static — only the
-   colors inside the ring move. Because the box itself never moves or
-   rotates, it's safe to add `filter: blur()` on top (unlike mask-composite
-   itself — see `SearchGlow.jsx`'s own header on why *that* operation isn't
-   trusted in this codebase — a blur is just a pixel filter, not a second
-   compositing step, so it doesn't share that failure mode).
-
-   GLOW ON BOTH SIDES OF THE BORDER, WEIGHTED OUTWARD: matching the existing
-   pointer-hover glow's (`SearchGlow.jsx`) look — a soft blur straddling the
-   edge rather than a crisp line sitting flush against it. The masked band
-   itself spans from 9px outside `.frame`'s edge to 2px inside it (`inset`
-   vs `padding` below), then `filter: blur()` diffuses that hard-edged band
-   further in both directions — net effect is a glow visible on both sides
-   of the border, most of it outside.
-   The rotation itself runs unconditionally (cheap, and avoids restart
-   glitches each time it reappears); only `opacity` is gated on status. */
-.frame::before {
+   `from` angle (`--border-angle`), never by `transform: rotate()`-ing this
+   element. `.frame` is a wide, short box (a search bar, not a square) —
+   rotating a masked ring that shape sends its long straight edges sweeping
+   across the whole page at extreme angles, and the mask's antialiasing
+   seam along those edges shows up as a stray diagonal line for most of the
+   rotation (confirmed by disabling the mask and freezing the transform
+   independently while debugging). Animating the gradient's angle instead
+   keeps the box and its mask perfectly static — only the colors inside the
+   ring move. */
+.aiBorderGlow::before {
   content: '';
   position: absolute;
-  inset: -9px;
-  z-index: -1;
+  inset: 0;
   border-radius: inherit;
-  padding: 11px; /* 9px outside .frame's edge, 2px inside it */
+  padding: 11px; /* 9px outside .frame's edge, 2px inside it — see the span's own inset below */
   pointer-events: none;
 
   background: conic-gradient(
@@ -152,20 +141,53 @@
     linear-gradient(#fff 0 0) content-box,
     linear-gradient(#fff 0 0);
   mask-composite: exclude;
-  filter: blur(5px);
 
-  opacity: 0;
-  transition: opacity var(--duration-med) var(--ease);
   animation: aiBorderSpin calc(var(--duration-slow) * 4) linear infinite;
-}
-
-.frame[data-ai-status='loading']::before,
-.frame[data-ai-status='typing']::before {
-  opacity: 1;
 }
 
 @keyframes aiBorderSpin {
   to { --border-angle: 360deg; }
+}
+
+/* GLOW ON BOTH SIDES OF THE BORDER, WEIGHTED OUTWARD: matching the existing
+   pointer-hover glow's (`SearchGlow.jsx`) look — a soft blur straddling the
+   edge rather than a crisp line sitting flush against it.
+
+   THIS IS A REAL ELEMENT, NOT `.frame::before`, SPECIFICALLY SO THE BLUR
+   CAN'T GET CLIPPED: `filter: blur()` and `mask` living on the very same
+   element turned out to visibly cut the blur's bleed off at roughly this
+   element's own layout box in testing, well short of what the filter
+   should produce — a well-known rough edge where browsers composite a
+   masked element into an intermediate surface sized to its own box before
+   applying a later filter pass, rather than sizing that surface for the
+   filter's actual spread. Splitting the two — this span carries only the
+   `blur`, its own `::before` above carries only the `mask` — is the
+   standard, reliably-supported way to blur a masked shape, the same
+   reason `SearchGlow.jsx` strokes a real SVG `<path>` rather than trying
+   to fake its ring out of masks and filters on one element.
+
+   `inset: -9px` puts this span's own box 9px outside `.frame`'s edge; the
+   `::before` above then insets its mask's "hole" 11px in from *this
+   span's* edge, landing it 2px inside `.frame`'s actual edge — an 11px
+   band spanning 9px out / 2px in, before blur diffuses it further both
+   ways. The rotation itself runs unconditionally (cheap, and avoids
+   restart glitches each time it reappears); only `opacity` is gated on
+   status. */
+.aiBorderGlow {
+  position: absolute;
+  inset: -9px;
+  z-index: -1;
+  border-radius: inherit;
+  pointer-events: none;
+  filter: blur(5px);
+
+  opacity: 0;
+  transition: opacity var(--duration-med) var(--ease);
+}
+
+.frame[data-ai-status='loading'] .aiBorderGlow,
+.frame[data-ai-status='typing'] .aiBorderGlow {
+  opacity: 1;
 }
 
 /* A soft green bloom behind `.frame`, pulsing in and fading back out once
@@ -305,6 +327,16 @@
   display: none;
 }
 
+/* Hides the real text while a slash command is recognised — `.commandOverlay`
+   below paints it back in the same place with the command portion colored,
+   since a native input can't style part of its own value. `caret-color` is
+   separate from `color` on purpose: without it, making the text transparent
+   would also make the blinking cursor itself invisible. */
+.input[data-command-active] {
+  color: transparent;
+  caret-color: var(--fg-primary);
+}
+
 /* --- Inline completion ---------------------------------------------------- */
 
 /* The rest of the top suggestion, shown behind the caret for Tab to take.
@@ -352,6 +384,32 @@
   }
 }
 
+/* --- Slash command highlight ------------------------------------------------ */
+
+/* Repaints the field's full value over the now-transparent real `<Input>`
+   (see `.input[data-command-active]` above) with the recognised command's
+   prefix colored — same positioning trick as `.ghost` above (no padding, no
+   border, identical font metrics, including the narrow-screen override
+   below) so this lines up with the real text exactly, just recreating the
+   whole value instead of an unwritten suffix. */
+.commandOverlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  pointer-events: none;
+
+  font-size: var(--text-lg);
+  white-space: pre;
+  color: var(--fg-primary);
+}
+
+.commandHighlight {
+  color: var(--accent);
+  font-weight: 600;
+}
+
 /* --- Submit button -------------------------------------------------------- */
 
 .submit {
@@ -394,6 +452,24 @@
 .submit[data-disabled] {
   opacity: 0.5;
   cursor: default;
+}
+
+/* --- Slash command hint chip ------------------------------------------------- */
+
+/* Stands in for the autocomplete dropdown while a recognised command is
+   being typed — see `activeCommand` in SearchBar.jsx. A plain flex child of
+   `.bar` (not a floating tooltip) so it's visible the entire time you're
+   composing the command, not just while hovering something. */
+.commandHint {
+  flex-shrink: 0;
+  padding: 3px var(--space-2);
+  border-radius: var(--radius-pill);
+
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  color: var(--accent);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  white-space: nowrap;
 }
 
 /* --- Search/Ask AI toggle --------------------------------------------------- */
@@ -448,10 +524,11 @@
     padding-left: var(--space-4);
   }
 
-  /* Both together, always: `.ghost` only lines up behind the caret while it
-     renders text exactly as `.input` does. */
+  /* All three together, always: `.ghost`/`.commandOverlay` only line up
+     over the real text while they render it exactly as `.input` does. */
   .input,
-  .ghost {
+  .ghost,
+  .commandOverlay {
     font-size: var(--text-input);
   }
 }
