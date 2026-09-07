@@ -15,9 +15,13 @@
  * elements out of collection rows, which React Aria makes fiddlier than it
  * looks (see CLAUDE.md).
  *
- * Nothing here renders when no provider keys are configured for the build.
- * The tab itself is hidden in that case (see SettingsModal.jsx), so an app
- * built without them never mentions storage that can't be reached.
+ * WHEN THE BUILD HAS NO PROVIDER KEYS, this says so rather than disappearing.
+ * The tab used to hide itself in that case, on the theory that an app which
+ * can't reach any storage shouldn't mention it. That was wrong in the way
+ * that matters: `VITE_*` keys are inlined at BUILD time, so a deployment
+ * built without them looks exactly like a build where the feature doesn't
+ * exist, with nothing anywhere to tell the two apart. A settings screen's job
+ * is to say what the state is, and "not configured" is a state.
  */
 
 import { Button as AriaButton, Disclosure, DisclosurePanel, Heading } from 'react-aria-components';
@@ -32,6 +36,7 @@ import styles from './SettingsModal.module.css';
  */
 export function FilesTab({ files }) {
   const connected = files.available.find((provider) => provider.id === files.providerId);
+  const isConfigured = files.available.length > 0;
 
   const items = [
     { id: 'none', name: 'Not connected' },
@@ -51,21 +56,40 @@ export function FilesTab({ files }) {
 
   return (
     <div className={styles.section}>
-      <Select
-        label="Store my files in"
-        items={items}
-        selectedKey={files.providerId ?? 'none'}
-        onSelectionChange={handleChange}
-      />
+      {/* A picker whose only option is "Not connected" is worse than none, so
+          the unconfigured build gets the explanation below instead. */}
+      {isConfigured && (
+        <Select
+          label="Store my files in"
+          items={items}
+          selectedKey={files.providerId ?? 'none'}
+          onSelectionChange={handleChange}
+        />
+      )}
 
       <p className={styles.statusRow}>
         <FolderIcon size={16} />
-        {files.isConnecting
-          ? 'Connecting…'
-          : connected
-            ? `Connected to ${connected.label}${files.accountLabel ? ` (${files.accountLabel})` : ''}.`
-            : 'No storage connected.'}
+        {!isConfigured
+          ? 'No storage providers are set up for this build.'
+          : files.isConnecting
+            ? 'Connecting…'
+            : connected
+              ? `Connected to ${connected.label}${files.accountLabel ? ` (${files.accountLabel})` : ''}.`
+              : 'No storage connected.'}
       </p>
+
+      {/* Aimed at whoever deployed this, which for a self-hosted new-tab page
+          is usually the person reading it. Phrased as configuration rather
+          than an error, since nothing is broken. */}
+      {!isConfigured && (
+        <p className={styles.hint}>
+          Google Drive and Dropbox each need a key set before they can be
+          offered — <code>VITE_GOOGLE_CLIENT_ID</code> and{' '}
+          <code>VITE_DROPBOX_APP_KEY</code>. They’re read when the app is built, so a
+          deployment needs them set wherever it builds, not just in a local{' '}
+          <code>.env.local</code>. See <code>.env.example</code> for how to get them.
+        </p>
+      )}
 
       {files.error && <p className={styles.hintError}>{files.error.message}</p>}
 

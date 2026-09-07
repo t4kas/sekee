@@ -184,18 +184,16 @@ export function SettingsModal({
         />
       ),
     },
-    // Only when the build has keys for at least one storage provider —
-    // otherwise the tab could only ever say "nothing available".
-    ...(files.available.length > 0
-      ? [
-          {
-            id: 'files',
-            label: 'Files',
-            icon: <FolderIcon size={16} />,
-            panel: <FilesTab files={files} />,
-          },
-        ]
-      : []),
+    // Always present, even when the build has no storage provider keys. It
+    // used to be conditional, which made a missing key indistinguishable from
+    // a missing feature — the tab simply wasn't there, and nothing said why.
+    // `FilesTab` explains that case instead.
+    {
+      id: 'files',
+      label: 'Files',
+      icon: <FolderIcon size={16} />,
+      panel: <FilesTab files={files} />,
+    },
     {
       id: 'weather',
       label: 'Weather',

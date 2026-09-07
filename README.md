@@ -40,6 +40,15 @@ your browser's homepage. Chrome doesn't allow replacing the new-tab page
 without an extension, so most people set it as the **homepage** and use a
 pinned tab; Firefox lets you set a custom new-tab page directly.
 
+**Keys have to be set where the build runs.** Vite reads `VITE_*` variables at
+build time and bakes their values into `dist/`, so `.env.local` — which is
+gitignored and never uploaded — has no effect on a deployment. Every optional
+feature below (Unsplash, accounts, file storage) is off in a build that didn't
+have its key, and the app can't tell you afterwards which key was missing at
+the time. On Vercel or Netlify that means the host's **Environment Variables**
+settings, followed by a **redeploy**: an existing deployment keeps whatever it
+was built with, so adding a variable changes nothing until something rebuilds.
+
 ### Adding Unsplash backgrounds (optional)
 
 1. Register a free app at <https://unsplash.com/developers>.
