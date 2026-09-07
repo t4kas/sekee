@@ -86,7 +86,27 @@ export class GeminiError extends Error {
 }
 
 /**
- * Asks Gemini a single question and returns its answer text.
+ * Turns a raw Gemini model identifier into something worth showing next to
+ * an answer — e.g. `gemini-2.5-flash` -> "Gemini 2.5 Flash",
+ * `gemini-flash-latest` -> "Gemini Flash". Drops a `models/` prefix (present
+ * on some response shapes) and a trailing `latest`/numeric build suffix,
+ * which is noise rather than something a user benefits from seeing.
+ *
+ * @param {string} [rawModel] the API's own `modelVersion`, when present
+ * @returns {string}
+ */
+export function formatModelName(rawModel) {
+  const name = (rawModel || MODEL).replace(/^models\//, '');
+
+  return name
+    .split('-')
+    .filter((part) => part !== 'latest' && !/^\d{3,}$/.test(part))
+    .map((part) => (part === 'gemini' ? 'Gemini' : /^\d/.test(part) ? part : part[0].toUpperCase() + part.slice(1)))
+    .join(' ');
+}
+
+/**
+ * Asks Gemini a single question and returns its answer.
  *
  * Throws a `GeminiError` on failure (bad/rejected key, free-tier rate limit,
  * network failure, or an unexpected response shape) — unlike
@@ -97,7 +117,7 @@ export class GeminiError extends Error {
  * @param {string} prompt
  * @param {string} apiKey
  * @param {{ signal?: AbortSignal }} [options]
- * @returns {Promise<string>}
+ * @returns {Promise<{ text: string, model: string }>}
  */
 export async function askGemini(prompt, apiKey, { signal } = {}) {
   const trimmedKey = apiKey?.trim();
@@ -134,5 +154,5 @@ export async function askGemini(prompt, apiKey, { signal } = {}) {
     throw new GeminiError('network', 'Gemini returned an empty response.');
   }
 
-  return text.trim();
+  return { text: text.trim(), model: formatModelName(data?.modelVersion) };
 }

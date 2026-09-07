@@ -38,6 +38,7 @@
 
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Button, Input, Label, SearchField } from 'react-aria-components';
+import ReactMarkdown from 'react-markdown';
 import { EngineLogo } from './EngineLogo.jsx';
 import { SearchIcon, SparkleIcon } from '../ui/icons.jsx';
 import SearchGlow from '../ui/SearchGlow.jsx';
@@ -470,25 +471,50 @@ export function SearchBar({ engineId }) {
 
 /**
  * Fills the same dropdown slot the suggestions list normally occupies,
- * while an "Ask AI" submission (toggle or `/ai` prefix) is loading, answered,
- * or failed. Plain text only for now — a quick answer, not a rendered chat
- * message.
+ * while an "Ask AI" submission (toggle or `/ai` prefix) is loading, typing
+ * out, answered, or failed. `data-variant` is just `query.status` — CSS
+ * keys the sheen and error color off the same states the component branches
+ * on, nothing renamed in between.
+ *
+ * Markdown (Gemini routinely answers with headings/bold/bullet lists) is
+ * rendered via `react-markdown` even mid-typewriter, over whatever prefix of
+ * the full answer has been revealed so far — an unclosed `**` or `*` while
+ * typing briefly renders as a literal asterisk until the closing marker
+ * arrives a tick later, a minor cosmetic flicker accepted in exchange for
+ * not re-parsing/diffing markdown structure on every reveal tick.
+ *
  * @param {{ query: ReturnType<typeof import('../../hooks/useGeminiQuery.js').useGeminiQuery> }} props
  */
 function AIAnswerPanel({ query }) {
-  if (query.status === 'loading') {
-    return <p className={styles.aiPanel} data-variant="loading">Asking Gemini…</p>;
-  }
+  const isAnimating = query.status === 'loading' || query.status === 'typing';
 
-  if (query.status === 'error') {
-    return (
-      <p className={styles.aiPanel} data-variant="error">
-        {query.errorMessage}
-      </p>
-    );
-  }
+  return (
+    <div className={styles.aiPanel} data-variant={query.status} aria-live="polite">
+      {query.status === 'loading' && <p className={styles.aiStatusText}>Asking Gemini…</p>}
 
-  return <p className={styles.aiPanel}>{query.answer}</p>;
+      {query.status === 'error' && <p className={styles.aiStatusText}>{query.errorMessage}</p>}
+
+      {(query.status === 'typing' || query.status === 'ready') && (
+        <>
+          <div className={styles.aiMarkdown}>
+            <ReactMarkdown>{query.displayedAnswer}</ReactMarkdown>
+            {query.status === 'typing' && <span className={styles.caret} aria-hidden="true" />}
+          </div>
+
+          {query.status === 'ready' && query.model && (
+            <span className={styles.modelPill}>
+              <SparkleIcon size={12} />
+              {query.model}
+            </span>
+          )}
+        </>
+      )}
+
+      {/* Decorative sweep, not content — hidden from assistive tech the same
+          way the ghost-completion overlay above is. */}
+      {isAnimating && <span className={styles.sheen} aria-hidden="true" />}
+    </div>
+  );
 }
 
 /**
