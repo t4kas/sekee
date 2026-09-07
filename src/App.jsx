@@ -54,7 +54,7 @@ export default function App() {
   // question from where bookmarks sync, and deliberately not tied to it. Also
   // called exactly once here; see the hook's header.
   const files = useFileProvider();
-  const { settings, updateSettings, refresh: refreshSettings } = useSettings();
+  const { settings, isLoading: isLoadingSettings, updateSettings, refresh: refreshSettings } = useSettings();
   const {
     bookmarks,
     isLoading,
@@ -83,7 +83,26 @@ export default function App() {
   // Favorites need to exist before useBackground can decide whether to show
   // one — see useBackground.js.
   const { favorites, addFavorite, removeFavorite } = useFavorites(sync.accountKey);
-  const { photo, refresh: refreshBackground } = useBackground(settings, favorites);
+  const { photo, isLoading: isLoadingBackground, refresh: refreshBackground } = useBackground(settings, favorites);
+
+  /** Covers the app until every piece an *account* needs has settled, not
+   *  just until `useAuth` knows whether one exists. Signed out, `sync.isReady`
+   *  flips true almost immediately (pointing `storage` at localStorage is
+   *  effectively synchronous) so this resolves as fast as it always did.
+   *  Signed in, it stays true until `useSync` has disposed the old adapter,
+   *  migrated local data, and pointed `storage` at the account — and, because
+   *  `setActiveAdapter` re-delivers a fresh read to every subscriber before
+   *  that promise resolves (see storage.js), `bookmarks`/`groups`/`settings`
+   *  already hold the account's data by the time `sync.isReady` does. The
+   *  remaining `isLoading*` checks only matter for the very first mount and
+   *  for `useBackground`, which reacts to `settings` rather than to sync
+   *  directly — without waiting for it too, the account's background photo
+   *  would still swap in after the cover lifts. See Preloader.jsx. */
+  const isPreparingAccount = Boolean(user) && !sync.isReady;
+  const showPreloader =
+    isCheckingSession ||
+    isPreparingAccount ||
+    (Boolean(user) && (isLoading || isLoadingGroups || isLoadingSettings || isLoadingBackground));
 
   /** The active group's bookmarks, in display order. `'recent'` mode derives
    *  its order from `lastOpenedAt` (never-opened bookmarks sort last, via
@@ -212,11 +231,12 @@ export default function App() {
 
   return (
     <>
-      {/* Covers everything below until `useAuth` has settled — see
-          Preloader.jsx. The app underneath keeps rendering (and its hooks
-          keep loading) rather than being swapped in afterwards, so the page
-          is already warm when the cover comes off. */}
-      {isCheckingSession && <Preloader />}
+      {/* Covers everything below until the app is actually ready to show —
+          see `isPreparingAccount`/`showPreloader` above and Preloader.jsx.
+          The app underneath keeps rendering (and its hooks keep loading)
+          rather than being swapped in afterwards, so the page is already
+          warm when the cover comes off. */}
+      {showPreloader && <Preloader message={isPreparingAccount ? 'Preparing your account…' : undefined} />}
 
       <Background photo={photo} />
 
