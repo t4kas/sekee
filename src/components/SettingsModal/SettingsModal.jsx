@@ -38,7 +38,16 @@ import {
   TabPanel,
   Tabs,
 } from 'react-aria-components';
-import { BookmarkIcon, CameraIcon, CloseIcon, CloudIcon, SlidersIcon, SunIcon, UserIcon } from '../ui/icons.jsx';
+import {
+  BookmarkIcon,
+  CameraIcon,
+  CloseIcon,
+  CloudIcon,
+  FolderIcon,
+  SlidersIcon,
+  SunIcon,
+  UserIcon,
+} from '../ui/icons.jsx';
 import { AuthDialog } from '../Account/AuthDialog.jsx';
 import { MobileSettings } from './MobileSettings.jsx';
 import { useMediaQuery } from '../../hooks/useMediaQuery.js';
@@ -47,6 +56,7 @@ import { PreferencesTab } from './PreferencesTab.jsx';
 import { PersonalisationTab } from './PersonalisationTab.jsx';
 import { BookmarksTab } from './BookmarksTab.jsx';
 import { SyncTab } from './SyncTab.jsx';
+import { FilesTab } from './FilesTab.jsx';
 import { WeatherTab } from './WeatherTab.jsx';
 import dialogStyles from '../BookmarkDialog/BookmarkDialog.module.css';
 import styles from './SettingsModal.module.css';
@@ -65,6 +75,7 @@ import styles from './SettingsModal.module.css';
  * @param {(credentials: {email: string, password: string}) => Promise<{needsEmailConfirmation: boolean}>} props.signUp
  * @param {() => Promise<void>} props.signOut
  * @param {object} props.sync the `useSync` result — see App.jsx
+ * @param {object} props.files the `useFileProvider` result — see App.jsx
  * @param {() => void} props.refreshBookmarks
  * @param {() => void} props.refreshSettings
  * @param {{id: string, name: string}[]} props.groups
@@ -87,6 +98,7 @@ export function SettingsModal({
   signUp,
   signOut,
   sync,
+  files,
   refreshBookmarks,
   refreshSettings,
   groups,
@@ -166,13 +178,24 @@ export function SettingsModal({
       icon: <CloudIcon size={16} />,
       panel: (
         <SyncTab
-          user={user}
           sync={sync}
           refreshBookmarks={refreshBookmarks}
           refreshSettings={refreshSettings}
         />
       ),
     },
+    // Only when the build has keys for at least one storage provider —
+    // otherwise the tab could only ever say "nothing available".
+    ...(files.available.length > 0
+      ? [
+          {
+            id: 'files',
+            label: 'Files',
+            icon: <FolderIcon size={16} />,
+            panel: <FilesTab files={files} />,
+          },
+        ]
+      : []),
     {
       id: 'weather',
       label: 'Weather',

@@ -1,91 +1,18 @@
 /**
  * Sync service
  * ---------------------------------------------------------------------------
- * Owns the answer to "where is this browser's data actually going right now?"
- * — the provider registry, the connection record that survives a reload, and
- * the one merge that runs when local data first meets an account's data.
+ * The one merge that runs when a browser's local data first meets an
+ * account's data. `useSync.js` is the only caller.
  *
- * `useSync.js` is the only caller. Nothing here touches React, and nothing
- * here knows which provider it's holding.
- *
- * THREE KINDS OF DESTINATION:
- *   'local'     localStorage, the default — no account, nothing leaves the device
- *   'supabase'  the app's own backend, keyed to a signed-in account
- *   BYO         the user's own cloud storage (see `byoProviders` below)
- *
- * A BYO provider is an object:
- *   id, label, isConfigured
- *   connect()             -> Promise<Session>   interactive, opens a popup
- *   restore(session)      -> Promise<Session|null>  silent, on boot
- *   disconnect(session)   -> Promise<void>
- *   createAdapter(session, onSessionChange) -> Adapter, matching storage.js's
- *                         contract. `onSessionChange` persists a session the
- *                         adapter renewed mid-flight (a refreshed access
- *                         token), so the next page load doesn't have to
- *                         refresh all over again.
- * where a Session is `{ accountId, accountLabel, ...whatever the provider needs }`
- * and must be JSON-serialisable, because it's what gets persisted below.
- *
- * WHERE THE CONNECTION RECORD LIVES. Through a direct
- * `createLocalStorageAdapter()`, never through `storage` — routing it through
- * the swappable object would try to sync the record describing a remote INTO
- * that same remote, which is both circular and wrong: which cloud account
- * you've linked is a property of this device, not of your data.
+ * Bookmarks, groups and settings live in Supabase when signed in and in
+ * `localStorage` otherwise — those are the only two destinations. Connecting
+ * Google Drive or Dropbox is a separate feature about FILES (see
+ * `services/files/`), and deliberately has nothing to do with where this
+ * structured data goes.
  */
 
 import { createLocalStorageAdapter, StorageKeys } from './storage.js';
 import { DEFAULT_GROUP_ID } from './bookmarkGroupsService.js';
-import * as dropbox from './sync/dropboxClient.js';
-import { createDropboxAdapter } from './dropboxAdapter.js';
-import * as googleDrive from './sync/googleDriveClient.js';
-import { createGoogleDriveAdapter } from './googleDriveAdapter.js';
-
-/** Bring-your-own-cloud providers, in the order the Sync tab lists them. */
-export const byoProviders = [
-  {
-    id: 'dropbox',
-    label: 'Dropbox',
-    description: 'A folder in your own Dropbox, visible under Apps.',
-    isConfigured: dropbox.isDropboxConfigured,
-    connect: dropbox.connect,
-    restore: dropbox.restore,
-    disconnect: dropbox.disconnect,
-    createAdapter: createDropboxAdapter,
-  },
-  {
-    id: 'google-drive',
-    label: 'Google Drive',
-    description: 'A hidden folder in your own Drive, not shown among your files.',
-    isConfigured: googleDrive.isGoogleDriveConfigured,
-    connect: googleDrive.connect,
-    restore: googleDrive.restore,
-    disconnect: googleDrive.disconnect,
-    createAdapter: createGoogleDriveAdapter,
-  },
-];
-
-/** @param {string} id @returns {object|undefined} */
-export function getByoProvider(id) {
-  return byoProviders.find((provider) => provider.id === id);
-}
-
-// Device-local, deliberately outside `storage` — see the header.
-const deviceStore = createLocalStorageAdapter();
-const CONNECTION_KEY = 'sync-connection';
-
-/** @returns {Promise<{providerId: string, session: object}|null>} */
-export async function readConnection() {
-  const stored = await deviceStore.read(CONNECTION_KEY);
-  return stored?.providerId ? stored : null;
-}
-
-export function writeConnection(providerId, session) {
-  return deviceStore.write(CONNECTION_KEY, { providerId, session });
-}
-
-export function clearConnection() {
-  return deviceStore.remove(CONNECTION_KEY);
-}
 
 function createId(prefix) {
   if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();

@@ -1,8 +1,8 @@
 /**
  * Dropbox client
  * ---------------------------------------------------------------------------
- * The only file that knows Dropbox's endpoints and holds its tokens. The
- * adapter (`dropboxAdapter.js`) asks it for an authorized `fetch` and doesn't
+ * The only file that knows Dropbox's endpoints and holds its tokens. The file
+ * store (`dropboxFileStore.js`) asks it for an authorized `fetch` and doesn't
  * think about auth at all.
  *
  * WHY DROPBOX IS THE EASY ONE. Its OAuth supports PKCE with a public app key
@@ -17,7 +17,7 @@
  * from their account takes the folder with it.
  *
  * WHERE THE REFRESH TOKEN LIVES, honestly: `localStorage`, via the connection
- * record in `syncService.js`. Any XSS on this origin could read it. There is
+ * record in `fileProviders.js`. Any XSS on this origin could read it. There is
  * no better option for an app with no backend — a token has to be somewhere
  * the page can reach — and the damage is bounded by the app-folder scope
  * above: it grants access to this app's own folder, not to the user's
@@ -165,7 +165,7 @@ export function createAuthorizedFetch(initialSession, onSessionChange) {
     }
     inFlightRefresh ??= restore(session)
       .then((next) => {
-        if (!next) throw new Error('Your Dropbox connection expired. Reconnect it in Settings → Sync.');
+        if (!next) throw new Error('Your Dropbox connection expired. Reconnect it in Settings → Files.');
         session = next;
         onSessionChange?.(next);
         return next.accessToken;

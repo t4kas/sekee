@@ -32,8 +32,16 @@ UI primitives, CSS Modules for styling. No router — a single page.
 `README.md` has the directory tree and setup instructions; this file covers
 what isn't visible from the structure.
 
-Persistence is `localStorage` by default and optionally one of three remote
-destinations — see "Storage destinations" below.
+Two persistence systems that are deliberately kept apart, and are the thing
+most likely to get conflated:
+
+- **Structured data** (bookmarks, groups, settings, favorites) — `localStorage`,
+  or Supabase when signed in. See "Storage destinations".
+- **Files** (images, avatars, attachments) — Supabase Storage or the user's own
+  Drive/Dropbox. See "File storage".
+
+Connecting cloud storage does not move bookmarks, and signing in does not
+decide where files go.
 
 ### The layering rule
 
@@ -55,34 +63,48 @@ stores data anywhere but this device.
 `storage` in `src/services/storage.js` is a fixed-identity object delegating
 to whichever adapter is active; `setActiveAdapter` swaps it and re-points
 every live `subscribe()` at the new one. `useSync.js` is the only caller, and
-it decides between:
-
-- `createLocalStorageAdapter()` — the default.
-- `createSupabaseAdapter(userId)` — the app's own backend, while signed in.
-- `createDropboxAdapter` / `createGoogleDriveAdapter` — the user's own cloud
-  storage, one JSON file per key in an app-scoped folder. Registered in
-  `byoProviders` (`syncService.js`), which is the extension point for a
-  fourth.
+it chooses between `createLocalStorageAdapter()` and `createSupabaseAdapter`.
 
 Two rules that are easy to break:
 
 - **`useAuth` handles authentication and nothing else.** Which adapter is
   active is `useSync`'s job. They used to be one hook, and merging them again
-  makes Supabase the only possible destination.
-- **The bring-your-own-cloud adapters must stay wrapped in
-  `createCachedRemoteAdapter`.** Unwrapped, a cloud round-trip lands on the
-  first paint of a new-tab page, and `recordBookmarkOpened` — which rewrites
-  the whole bookmarks blob on every bookmark click — turns into one API
-  request per click. The wrapper serves reads from a local mirror, revalidates
-  in the background, and debounces writes. Its consequence: `write` resolves
-  before the upload happens, so remote failures reach `onFlushError` (shown in
-  the Sync tab) rather than the caller's `try`/`catch`.
+  puts the migration back on the auth path.
+- **Supabase stays wrapped in `createCachedRemoteAdapter`.** Unwrapped, every
+  signed-in read is a Postgres round-trip on the first paint of a new-tab
+  page, and `recordBookmarkOpened` — which rewrites the whole bookmarks blob
+  on every bookmark click — becomes one write per click. The wrapper serves
+  reads from a local mirror, revalidates in the background (which is also the
+  only cross-device update mechanism, since the Supabase adapter's `subscribe`
+  is a no-op), and debounces writes. Its consequence: `write` resolves before
+  the upload happens, so failures reach `onFlushError` — surfaced in the Sync
+  tab — rather than the caller's `try`/`catch`.
 
-`DeviceLocalKeys` (photo pool, both weather caches) never leave the device,
-whatever adapter is active. `favoritesService.js` deliberately doesn't use
-`storage` — it calls `getRemoteAdapter()` and refuses when there isn't one, so
-"no account means no favorites" holds by construction rather than by
-convention.
+`DeviceLocalKeys` (photo pool, both weather caches) never leave the device.
+`favoritesService.js` deliberately doesn't use `storage` — it calls
+`getRemoteAdapter()` and refuses when there isn't one, so "no account means no
+favorites" holds by construction rather than by convention.
+
+### File storage
+
+`getStore(scope)` in `fileStorageService.js` is the only way to reach a file
+store, and the scope — not a provider name — is the decision:
+
+- `shared` → Supabase Storage. **The only store that can produce a permanent
+  public URL**, so anything another person's browser fetches (avatars) must go
+  here. Paths are `<userId>/<name>`; the RLS policies key off that first
+  segment, so getting the prefix wrong is rejected by Postgres.
+- `personal` → the user's linked Drive/Dropbox, registered by
+  `useFileProvider`. Their quota, their files.
+
+**Never persist a URL from the personal store.** Dropbox links expire in
+hours; Drive returns a tab-lifetime `blob:` handle, because serving a
+`drive.file` file to an `<img>` would require sharing it. Persist the path and
+re-resolve. `store.hasStableUrls` is the check, and `releaseViewUrl` is a
+no-op on stores that don't need it so callers can always call it.
+
+Adding a provider means one entry in `fileProviders.js` plus a store
+implementing the contract at the top of `dropboxFileStore.js`.
 
 ### React Aria composition constraints
 
@@ -149,6 +171,11 @@ which constrains both flows:
   instead, which gives a ~1h access token and no refresh token. Renewal is a
   silent `prompt: ''` re-request, and `restore` returning null (rather than
   throwing) is what produces a reconnect prompt instead of a broken page.
+
+The Drive scope is `drive.file`, not `drive.appdata`: app-data is hidden from
+the user, which is wrong for files they should be able to see and move in
+their own Drive, and `drive.file` is additionally the scope Google treats as
+non-sensitive, so it carries no verification or test-user cap.
 
 The popup handback in `oauthPkce.js` carries a one-time authorization code.
 Its three checks — message origin, message source, and `state` — are all
