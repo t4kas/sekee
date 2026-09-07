@@ -167,17 +167,24 @@ export const StorageKeys = {
   favorites: 'favorites',
   weatherGeocodeCache: 'weather-geocode-cache',
   weatherCache: 'weather-cache',
+  geminiApiKey: 'gemini-api-key',
 };
 
 /**
  * Keys that stay on this device even when a remote adapter is active.
  *
- * All three are caches with their own TTLs, rebuilt from a network call
+ * The three caches carry their own TTLs and are rebuilt from a network call
  * whenever they're missing — carrying them between devices buys nothing and
  * costs a write to somebody's cloud storage every time a 15-minute forecast
  * expires. The weather ones matter most for the bring-your-own-cloud
  * providers, where every write is an API request against a much tighter
  * quota than Postgres's, but there's no reason to sync them anywhere.
+ *
+ * `geminiApiKey` is here for a different reason: it's a credential, not a
+ * cache, and `settingsService.js`'s synced `settings` blob is exactly what
+ * gets replicated to Postgres when signed in — a Gemini key has no business
+ * sitting in that blob in plaintext. Same posture as the Dropbox refresh
+ * token in `dropboxClient.js`: it stays wherever the browser that owns it is.
  *
  * Every remote adapter passes these straight through to a private
  * localStorage adapter instead of writing them to its backend.
@@ -186,4 +193,5 @@ export const DeviceLocalKeys = new Set([
   StorageKeys.photoCache,
   StorageKeys.weatherGeocodeCache,
   StorageKeys.weatherCache,
+  StorageKeys.geminiApiKey,
 ]);

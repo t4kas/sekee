@@ -262,6 +262,53 @@
   cursor: default;
 }
 
+/* --- Search/Ask AI toggle --------------------------------------------------- */
+
+/* Same 36px circle as `.submit`, sitting just to its left — only mounted at
+   all once a Gemini key is configured (see SearchBar.jsx). */
+.modeToggle {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+
+  width: 36px;
+  height: 36px;
+  padding: 0;
+
+  border: none;
+  border-radius: 50%;
+
+  color: var(--fg-secondary);
+  background: transparent;
+  cursor: pointer;
+
+  transition:
+    background var(--duration-fast) var(--ease),
+    color var(--duration-fast) var(--ease);
+}
+
+.modeToggle[data-hovered] {
+  background: var(--surface-hover);
+  color: var(--fg-primary);
+}
+
+.modeToggle[data-pressed] {
+  background: var(--surface-active);
+}
+
+.modeToggle[data-focus-visible] {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+/* Active ("Ask AI" is the mode a plain Enter will use right now) gets the
+   accent treatment so it reads as a real mode switch, not just a hover
+   state. */
+.modeToggle[data-active] {
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+}
+
 @media (max-width: 560px) {
   .bar {
     padding-left: var(--space-4);
@@ -329,6 +376,48 @@
 .frame:not([data-open]) .suggestions {
   opacity: 0;
   filter: blur(10px);
+}
+
+/* --- AI answer panel -------------------------------------------------------- */
+
+/* Occupies the exact slot `.suggestions` does (see SearchBar.jsx's ternary)
+   so it inherits the same fade/blur-in treatment on open — the two never
+   show at once. */
+.aiPanel {
+  margin: 0;
+  margin-top: var(--space-2);
+  padding: var(--space-3);
+
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+
+  background: var(--surface-solid);
+  backdrop-filter: var(--blur);
+  box-shadow: var(--shadow-lg);
+
+  font-size: var(--text-md);
+  line-height: 1.5;
+  color: var(--fg-primary);
+  white-space: pre-wrap;
+
+  opacity: 1;
+  filter: blur(0);
+  transition:
+    opacity var(--duration-med) var(--ease),
+    filter var(--duration-med) var(--ease);
+}
+
+.frame:not([data-open]) .aiPanel {
+  opacity: 0;
+  filter: blur(10px);
+}
+
+.aiPanel[data-variant='loading'] {
+  color: var(--fg-secondary);
+}
+
+.aiPanel[data-variant='error'] {
+  color: var(--danger);
 }
 
 .suggestion {
