@@ -30,6 +30,7 @@ import { Preloader } from './components/Preloader/Preloader.jsx';
 import { SettingsIcon } from './components/ui/icons.jsx';
 import { Tooltip } from './components/ui/Tooltip.jsx';
 import { useAuth } from './hooks/useAuth.js';
+import { useSync } from './hooks/useSync.js';
 import { useBookmarks } from './hooks/useBookmarks.js';
 import { useBookmarkGroups } from './hooks/useBookmarkGroups.js';
 import { useFavorites } from './hooks/useFavorites.js';
@@ -44,6 +45,11 @@ export default function App() {
   // that matters. `user`/`signOut`/`signIn`/`signUp` flow down as props to
   // whatever needs them instead of each calling the hook itself.
   const { user, isLoading: isCheckingSession, signOut, signIn, signUp } = useAuth();
+  // `useSync` decides where data actually goes — this app's Supabase project,
+  // the user's own cloud storage, or just this device — and points `storage`
+  // at it. Called exactly once here for the same reason `useAuth` is; see its
+  // header. Everything below stays unaware of which destination won.
+  const sync = useSync(user);
   const { settings, updateSettings, refresh: refreshSettings } = useSettings();
   const {
     bookmarks,
@@ -72,7 +78,7 @@ export default function App() {
   } = useBookmarkGroups(reassignGroup);
   // Favorites need to exist before useBackground can decide whether to show
   // one — see useBackground.js.
-  const { favorites, addFavorite, removeFavorite } = useFavorites(user?.id);
+  const { favorites, addFavorite, removeFavorite } = useFavorites(sync.accountKey);
   const { photo, refresh: refreshBackground } = useBackground(settings, favorites);
 
   /** The active group's bookmarks, in display order. `'recent'` mode derives
@@ -261,7 +267,7 @@ export default function App() {
             <PhotoCredit photo={photo} />
             <FavoriteButton
               photo={photo}
-              user={user}
+              hasAccount={sync.providerId !== 'local'}
               favorites={favorites}
               addFavorite={addFavorite}
               removeFavorite={removeFavorite}
@@ -307,6 +313,7 @@ export default function App() {
         signIn={signIn}
         signUp={signUp}
         signOut={signOut}
+        sync={sync}
         refreshBookmarks={refreshBookmarksAndGroups}
         refreshSettings={refreshSettings}
         groups={groups}

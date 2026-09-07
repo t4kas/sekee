@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Finishing sign-in…</title>
+    <style>
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+        color: #33322e;
+        background: #faf9f5;
+      }
+      @media (prefers-color-scheme: dark) {
+        body { color: #e8e6dc; background: #1c1b19; }
+      }
+    </style>
+  </head>
+  <body>
+    <p id="message">Finishing sign-in…</p>
+
+    <!--
+      OAuth redirect target for the bring-your-own-cloud providers.
+
+      A static page rather than a route, because this app has no router — see
+      `src/services/sync/oauthPkce.js` for the flow this completes and for the
+      two checks the opener makes on the message below.
+
+      It hands the authorization code back to the page that opened it and
+      closes. It never touches the code itself: no token exchange happens
+      here, because the PKCE verifier lives in the opener's memory and was
+      deliberately never written anywhere this page could read it.
+    -->
+    <script>
+      (function () {
+        var params = new URLSearchParams(window.location.search);
+        var payload = {
+          source: 'sekee-oauth',
+          code: params.get('code'),
+          state: params.get('state'),
+          error: params.get('error_description') || params.get('error'),
+        };
+
+        if (!window.opener) {
+          document.getElementById('message').textContent =
+            'You can close this window and return to the app.';
+          return;
+        }
+
+        // Targeted at this exact origin, never '*': the payload contains a
+        // one-time authorization code, and a wildcard would hand it to
+        // whatever happens to be hosting the opener.
+        window.opener.postMessage(payload, window.location.origin);
+        window.close();
+      })();
+    </script>
+  </body>
+</html>

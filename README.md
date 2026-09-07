@@ -67,12 +67,20 @@ the widget stays hidden. It uses [Open-Meteo](https://open-meteo.com), which
 needs no API key and no `.env` setup — this one works for everyone out of the
 box. See `services/weatherService.js`.
 
-### Adding accounts / cloud sync (optional)
+### Adding cloud sync (optional)
 
-Signing in is entirely optional — everything works with just `localStorage`,
-same as before. Signing in additionally syncs your bookmarks and settings to
-a [Supabase](https://supabase.com) project, so they follow you to another
-browser or device.
+Sync is entirely optional — everything works with just `localStorage`, same
+as before. There are two kinds of destination, and you can enable either,
+both, or neither:
+
+- **An account on a Supabase project you run** (below). You operate the
+  backend; the free tier covers a personal app comfortably.
+- **The user's own Google Drive or Dropbox** (further below). Nothing to
+  operate and nothing to pay for at any scale — each person's data sits in
+  their own storage, in a folder scoped to this app, under their own quota.
+
+If both are configured, connecting your own cloud storage takes precedence
+over being signed in; Settings → Sync is where that's chosen.
 
 1. Create a free project at <https://supabase.com>.
 2. Open the project's **SQL Editor** and run:
@@ -127,23 +135,54 @@ sign in — fine for real use, but slow while developing. To skip it locally,
 turn off **Confirm email** under **Authentication → Providers → Email** in
 the project settings.
 
-**What syncs, and when.** Signed in, bookmarks and settings read from and
-write to Supabase instead of `localStorage`; signed out, it's `localStorage`
-as always. The first time you sign in on a device, whatever's already in
-that browser's `localStorage` is merged into your account (local bookmarks
-are added if their URL isn't already there; local settings are kept only if
-you don't have any synced yet) — nothing is ever deleted locally, so this
-can't lose data. Sync is refresh-based, not live: a bookmark added on one
-device shows up elsewhere the next time the app loads there, not instantly.
+### Syncing to your own cloud storage (optional)
 
-**Favoriting a background photo requires an account — there's no local
-version of it.** Click the heart on a photo to save it (signed out, it opens
-the sign-in dialog instead). Once you've favorited a few, "My Favorites"
+Instead of an account on a backend you run, sekee can put your data in a
+folder inside your own Google Drive or Dropbox. Nothing is hosted, nothing is
+paid for, and the folder is scoped to this app — it can't see the rest of
+your files, and removing the app from that account removes the folder with
+it. Setup for both (which console to use, which scopes, which redirect URL)
+is documented in `.env.example`; add the key, restart the dev server, and the
+provider appears in **Settings → Sync**.
+
+Two things to know before inviting other people to a deployment:
+
+- Google's `drive.appdata` scope is classed as sensitive, so an unverified
+  OAuth client is limited to the test users you list. Going public means
+  Google's verification process.
+- A Dropbox app stays in development mode until you apply for production,
+  which caps it at around 50 linked accounts.
+
+Neither limit affects using it yourself.
+
+### What syncs, and when
+
+With a destination connected, bookmarks, bookmark groups, settings and
+favorited photos read from and write to it instead of `localStorage`; with
+none, it's `localStorage` as always. Cached backgrounds and weather always
+stay on the device — they expire on their own, so there's nothing worth
+carrying between devices.
+
+The first time a device connects, whatever's already in that browser's
+`localStorage` is merged into the destination: local bookmarks are added if
+their URL isn't already there, local groups are matched up by name (and
+local-only bookmarks re-pointed at the merged groups), and local settings are
+kept only if you don't have any synced yet. Nothing is ever deleted on either
+side, so this can't lose data.
+
+Sync is refresh-based, not live: a change made on one device shows up
+elsewhere the next time the app loads there — or when you press "Sync now" —
+not instantly.
+
+**Favoriting a background photo requires a connected destination — there's no
+local version of it.** Click the heart on a photo to save it (with none
+connected, it opens the sign-in dialog instead). Once you've favorited a few, "My Favorites"
 appears in the Background dropdown alongside the photo categories, either
 shuffling among them or, if you switch to "Always show one," pinned to
 whichever one you pick on the Personalisation tab's Favorites sub-tab (also
 where you remove any).
-Favorites are stored the same way as bookmarks/settings — no separate table.
+Favorites are stored the same way as bookmarks and settings — no separate
+table, and no separate file.
 
 ---
 
@@ -155,8 +194,12 @@ src/
 ├── App.jsx                  layout shell; owns which dialog is open
 │
 ├── services/                ← all data access lives here
-│   ├── storage.js               storage adapter (localStorage, or Supabase
-│   │                            once signed in — see `setActiveAdapter`)
+│   ├── storage.js               storage adapter (localStorage, or a remote
+│   │                            one — see `setActiveAdapter`)
+│   ├── syncService.js           which destination is active, and the merge
+│   │                            that runs when local data first meets it
+│   ├── cachedRemoteAdapter.js   local mirror + debounced write-behind, wrapped
+│   │                            around the bring-your-own-cloud adapters
 │   ├── bookmarksService.js      bookmark CRUD + URL validation
 │   ├── settingsService.js       search engine + background preferences
 │   ├── unsplashService.js       photo fetching, caching, Unsplash rules
@@ -226,18 +269,28 @@ don't care which backend is actually answering. `storage.js` exports one
 underneath, it delegates to whichever *adapter* is currently active:
 
 - `createLocalStorageAdapter()` — the default, always available.
-- `createSupabaseAdapter(userId)` — used while signed in; see
-  `supabaseAdapter.js`.
+- `createSupabaseAdapter(userId)` — the app's own backend, while signed in.
+- `createDropboxAdapter(session)` / `createGoogleDriveAdapter(session)` — the
+  user's own cloud storage, one JSON file per key in a folder scoped to this
+  app.
 
-`useAuth.js` calls `setActiveAdapter(...)` whenever sign-in state changes,
+`useSync.js` calls `setActiveAdapter(...)` whenever the destination changes,
 which re-points every live `subscribe()` the app has open and re-delivers a
 fresh read — so `useBookmarks`/`useSettings` update immediately without
-needing to know auth exists.
+needing to know any of this exists. `useAuth.js` only handles signing in;
+where data goes is a separate decision.
+
+The two bring-your-own-cloud adapters are wrapped in
+`createCachedRemoteAdapter`, which is what makes them usable behind a new-tab
+page: reads come from a local mirror instantly and revalidate in the
+background, and writes are debounced so a burst of bookmark clicks becomes
+one upload instead of five. If a flush fails the value stays queued, and the
+queue survives a reload.
 
 Adding a different backend later means writing one more adapter with the
-same four methods and deciding when it becomes active — no component or hook
-needs to change, because their contract ("call this async function, get
-plain data back") stays the same.
+same four methods and adding it to `byoProviders` in `syncService.js` — no
+component or hook needs to change, because their contract ("call this async
+function, get plain data back") stays the same.
 
 ---
 
