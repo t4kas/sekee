@@ -68,9 +68,32 @@
    in WeatherWidget.jsx for why, and SearchBar.module.css's `.frame` for the
    identical trick applied to the search dropdown. */
 .widget {
+  /* Both durations are derived from `--duration-med` with `calc()` rather
+     than written as literals so the reduced-motion override in tokens.css
+     (which zeroes the duration tokens) still switches this off. Opening is
+     the slower half: the card is growing in two directions at once and
+     needs the extra time to read as one movement, while closing wants to
+     get out of the way. */
+  --open-duration: calc(var(--duration-med) * 1.15);
+  --close-duration: calc(var(--duration-med) * 0.8);
+  /* A stronger ease-out than `--ease` for the opening: the box leaves the
+     pill quickly and settles into its final size, so the growth is felt at
+     the start rather than as a uniform slide. */
+  --ease-open: cubic-bezier(0.16, 0.84, 0.24, 1);
+
   display: grid;
   grid-template-rows: auto 0fr;
+
+  /* WIDTH IS ANIMATED THROUGH `min-width`, NOT `width`. The card is wider
+     open than shut, but `width: fit-content` -> `width: 100%` is not an
+     interpolatable pair, so the box used to snap to full width on the first
+     frame and then ease its height open under it — two different motions.
+     Growing `min-width` from 0 to 100% instead does interpolate (a length
+     and a percentage animate as a `calc()`), and because the used width is
+     `fit-content` clamped up by `min-width`, the card sits at its pill size
+     until the floor passes it and then widens smoothly to the column. */
   width: fit-content;
+  min-width: 0;
   max-width: 100%;
 
   border: 1px solid var(--border);
@@ -80,15 +103,24 @@
   box-shadow: var(--shadow-md);
   overflow: hidden;
 
+  /* The collapsed rule carries the *closing* transition and the expanded
+     one below carries the *opening* transition — a state's own declaration
+     is what applies while the element moves into it. */
   transition:
-    grid-template-rows var(--duration-med) var(--ease),
-    border-radius var(--duration-med) var(--ease);
+    grid-template-rows var(--close-duration) var(--ease),
+    min-width var(--close-duration) var(--ease),
+    border-radius var(--close-duration) var(--ease);
 }
 
 .widget[data-expanded] {
   grid-template-rows: auto 1fr;
-  width: 100%;
+  min-width: 100%;
   border-radius: 25px 25px var(--radius-lg) var(--radius-lg);
+
+  transition:
+    grid-template-rows var(--open-duration) var(--ease-open),
+    min-width var(--open-duration) var(--ease-open),
+    border-radius var(--open-duration) var(--ease-open);
 }
 
 /* The button fills `.widget`'s own chrome, so its own border/background/
@@ -120,21 +152,29 @@
   box-shadow: inset 0 0 0 2px var(--accent);
 }
 
+/* Turns over the same duration as the card it belongs to, so the arrow and
+   the box arrive together instead of the arrow finishing first. */
 .chevron {
   flex-shrink: 0;
   margin-left: auto;
   color: var(--fg-muted);
-  transition: transform var(--duration-fast) var(--ease);
+  transition: transform var(--close-duration) var(--ease);
 }
 
 .widget[data-expanded] .chevron {
   transform: rotate(180deg);
+  transition: transform var(--open-duration) var(--ease-open);
 }
 
 /* --- Expanded content -------------------------------------------------- */
 
+/* `overflow: hidden` is what clips the content while the row's track is
+   smaller than it; `min-height: 0` keeps a grid item's automatic minimum
+   size from holding the 0fr track open — same pair as SearchBar's
+   `.suggestionsRow`. */
 .detailsRow {
   overflow: hidden;
+  min-height: 0;
 }
 
 .details {
@@ -142,6 +182,39 @@
   flex-direction: column;
   gap: var(--space-4);
   padding: 0 var(--space-4) var(--space-4);
+}
+
+/* The sections fade and drop in rather than simply being unclipped, which
+   is what a bare grid-row accordion gives you: without this the rows are
+   fully opaque from the first frame and merely sliced by the growing track,
+   and the horizontal reflow as the card widens is visible on every one of
+   them. Opening waits out part of the box's growth (`--reveal-delay`) and
+   staggers the sections; closing runs immediately and fast, so the content
+   is gone before the box has finished shrinking over it. */
+.details > * {
+  --reveal-delay: 0ms;
+
+  opacity: 0;
+  transform: translateY(-6px);
+  transition:
+    opacity calc(var(--duration-fast) * 0.75) var(--ease),
+    transform calc(var(--duration-fast) * 0.75) var(--ease);
+}
+
+.widget[data-expanded] .details > * {
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity var(--duration-med) var(--ease) var(--reveal-delay),
+    transform var(--duration-med) var(--ease-open) var(--reveal-delay);
+}
+
+.widget[data-expanded] .details > *:nth-child(2) {
+  --reveal-delay: calc(var(--duration-fast) * 0.4);
+}
+
+.widget[data-expanded] .details > *:nth-child(3) {
+  --reveal-delay: calc(var(--duration-fast) * 0.8);
 }
 
 .daySummary {
