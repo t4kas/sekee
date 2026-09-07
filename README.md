@@ -135,25 +135,60 @@ sign in — fine for real use, but slow while developing. To skip it locally,
 turn off **Confirm email** under **Authentication → Providers → Email** in
 the project settings.
 
-### Syncing to your own cloud storage (optional)
+### Storing files (optional)
 
-Instead of an account on a backend you run, sekee can put your data in a
-folder inside your own Google Drive or Dropbox. Nothing is hosted, nothing is
-paid for, and the folder is scoped to this app — it can't see the rest of
-your files, and removing the app from that account removes the folder with
-it. Setup for both (which console to use, which scopes, which redirect URL)
-is documented in `.env.example`; add the key, restart the dev server, and the
-provider appears in **Settings → Sync**.
+Separate from sync, and worth keeping straight: **sync is about bookmarks and
+settings, files are about images and attachments.** Signing in decides the
+first; connecting storage decides the second. Neither affects the other.
 
-Two things to know before inviting other people to a deployment:
+Files go to one of two places, chosen by who has to read them:
 
-- Google's `drive.appdata` scope is classed as sensitive, so an unverified
-  OAuth client is limited to the test users you list. Going public means
-  Google's verification process.
-- A Dropbox app stays in development mode until you apply for production,
-  which caps it at around 50 linked accounts.
+- **Anything other people see — avatars above all — goes to Supabase
+  Storage.** It's the only option that produces a permanent public URL, which
+  is what another person's browser needs. Create the bucket by running this
+  in the project's SQL editor:
 
-Neither limit affects using it yourself.
+  ```sql
+  insert into storage.buckets (id, name, public)
+  values ('user-files', 'user-files', true);
+
+  -- Every path is `<user id>/<name>`, and these policies key off that first
+  -- segment: a signed-in user can only write inside their own prefix.
+  create policy "read any file" on storage.objects
+    for select using (bucket_id = 'user-files');
+  create policy "write own files" on storage.objects
+    for insert with check (
+      bucket_id = 'user-files' and (storage.foldername(name))[1] = auth.uid()::text
+    );
+  create policy "update own files" on storage.objects
+    for update using (
+      bucket_id = 'user-files' and (storage.foldername(name))[1] = auth.uid()::text
+    );
+  create policy "delete own files" on storage.objects
+    for delete using (
+      bucket_id = 'user-files' and (storage.foldername(name))[1] = auth.uid()::text
+    );
+  ```
+
+  The bucket is public for **reads** — that's what makes an avatar URL work
+  without signing every request. Don't put anything private in it.
+
+- **The user's own files go to their own Google Drive or Dropbox.** Costs you
+  nothing at any scale, since it's their storage and their quota, and the
+  files stay theirs if they stop using this app. Setup for both — which
+  console, which scopes, which redirect URL — is in `.env.example`. Add a key,
+  restart the dev server, and a **Files** tab appears in Settings.
+
+Google uses the `drive.file` scope, which only reaches files this app created
+and which Google treats as non-sensitive — so there's no verification process
+or test-user cap to work around. Dropbox apps do stay in development mode
+until you apply for production, capping them at around 50 linked accounts.
+
+In code this is one call: `getStore(scope)` from `fileStorageService.js`,
+where the scope is `shared` or `personal`. One caveat the service documents —
+only the shared store's URLs are permanent. Dropbox links expire in hours and
+Drive hands back a `blob:` handle, so for personal files persist the **path**
+and resolve it when you need it.
 
 ### What syncs, and when
 
@@ -196,10 +231,13 @@ src/
 ├── services/                ← all data access lives here
 │   ├── storage.js               storage adapter (localStorage, or a remote
 │   │                            one — see `setActiveAdapter`)
-│   ├── syncService.js           which destination is active, and the merge
-│   │                            that runs when local data first meets it
-│   ├── cachedRemoteAdapter.js   local mirror + debounced write-behind, wrapped
-│   │                            around the bring-your-own-cloud adapters
+│   ├── syncService.js           the merge that runs when local data first
+│   │                            meets an account's data
+│   ├── cachedRemoteAdapter.js   local mirror + debounced write-behind around
+│   │                            the Supabase adapter
+│   ├── fileStorageService.js    picks a file store by scope (see below)
+│   ├── files/                   file stores + the cloud accounts they need
+│   │                            (OAuth, Dropbox, Drive, Supabase Storage)
 │   ├── bookmarksService.js      bookmark CRUD + URL validation
 │   ├── settingsService.js       search engine + background preferences
 │   ├── unsplashService.js       photo fetching, caching, Unsplash rules
@@ -269,28 +307,27 @@ don't care which backend is actually answering. `storage.js` exports one
 underneath, it delegates to whichever *adapter* is currently active:
 
 - `createLocalStorageAdapter()` — the default, always available.
-- `createSupabaseAdapter(userId)` — the app's own backend, while signed in.
-- `createDropboxAdapter(session)` / `createGoogleDriveAdapter(session)` — the
-  user's own cloud storage, one JSON file per key in a folder scoped to this
-  app.
+- `createSupabaseAdapter(userId)` — used while signed in.
 
-`useSync.js` calls `setActiveAdapter(...)` whenever the destination changes,
-which re-points every live `subscribe()` the app has open and re-delivers a
-fresh read — so `useBookmarks`/`useSettings` update immediately without
-needing to know any of this exists. `useAuth.js` only handles signing in;
-where data goes is a separate decision.
+`useSync.js` calls `setActiveAdapter(...)` whenever that changes, which
+re-points every live `subscribe()` the app has open and re-delivers a fresh
+read — so `useBookmarks`/`useSettings` update immediately without needing to
+know any of this exists. `useAuth.js` only handles signing in; where data
+goes is a separate decision.
 
-The two bring-your-own-cloud adapters are wrapped in
-`createCachedRemoteAdapter`, which is what makes them usable behind a new-tab
-page: reads come from a local mirror instantly and revalidate in the
-background, and writes are debounced so a burst of bookmark clicks becomes
-one upload instead of five. If a flush fails the value stays queued, and the
-queue survives a reload.
+Supabase is wrapped in `createCachedRemoteAdapter`, which is what keeps a
+Postgres round-trip off the first paint: reads come from a local mirror and
+revalidate in the background, and writes are debounced, so a burst of
+bookmark clicks becomes one upload instead of five. If a flush fails the
+value stays queued, and the queue survives a reload. Its one consequence is
+that a write resolves before it reaches Postgres, so a failure shows up in
+the Sync tab rather than at the call site.
 
 Adding a different backend later means writing one more adapter with the
-same four methods and adding it to `byoProviders` in `syncService.js` — no
-component or hook needs to change, because their contract ("call this async
-function, get plain data back") stays the same.
+same four methods and deciding when it becomes active — no component or hook
+needs to change, because their contract ("call this async function, get
+plain data back") stays the same. **File storage is a separate system** with
+its own contract; see `fileStorageService.js`.
 
 ---
 

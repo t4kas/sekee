@@ -31,6 +31,7 @@ import { SettingsIcon } from './components/ui/icons.jsx';
 import { Tooltip } from './components/ui/Tooltip.jsx';
 import { useAuth } from './hooks/useAuth.js';
 import { useSync } from './hooks/useSync.js';
+import { useFileProvider } from './hooks/useFileProvider.js';
 import { useBookmarks } from './hooks/useBookmarks.js';
 import { useBookmarkGroups } from './hooks/useBookmarkGroups.js';
 import { useFavorites } from './hooks/useFavorites.js';
@@ -49,6 +50,10 @@ export default function App() {
   // device otherwise. Called exactly once here for the same reason `useAuth`
   // is; see its header. Everything below stays unaware of which one won.
   const sync = useSync(user);
+  // The user's own cloud storage for images and attachments — a separate
+  // question from where bookmarks sync, and deliberately not tied to it. Also
+  // called exactly once here; see the hook's header.
+  const files = useFileProvider();
   const { settings, updateSettings, refresh: refreshSettings } = useSettings();
   const {
     bookmarks,
@@ -313,6 +318,7 @@ export default function App() {
         signUp={signUp}
         signOut={signOut}
         sync={sync}
+        files={files}
         refreshBookmarks={refreshBookmarksAndGroups}
         refreshSettings={refreshSettings}
         groups={groups}

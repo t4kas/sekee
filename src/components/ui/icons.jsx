@@ -151,6 +151,12 @@ export const CloudIcon = (props) => (
   </Svg>
 );
 
+export const FolderIcon = (props) => (
+  <Svg {...props}>
+    <path d="M3 7a2 2 0 0 1 2-2h3.6a2 2 0 0 1 1.4.6L11.4 7H19a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z" />
+  </Svg>
+);
+
 export const SlidersIcon = (props) => (
   <Svg {...props}>
     <path d="M4 6h8M16 6h4M4 12h4M12 12h8M4 18h11M19 18h1" />
