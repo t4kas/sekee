@@ -25,7 +25,10 @@
 }
 
 /* Darkens the top and bottom edges so overlaid UI stays readable no matter
-   how bright the photo is. */
+   how bright the photo is. Transitioned because `data-tone` can change under
+   it — the measured tone arrives a moment after the dominant-colour guess
+   (see useBackgroundTone.js) — and a scrim snapping from dark to light is far
+   more noticeable than one crossfading. */
 .scrim {
   position: absolute;
   inset: 0;
@@ -36,5 +39,23 @@
       rgba(0, 0, 0, 0.18) 28%,
       rgba(0, 0, 0, 0.28) 68%,
       rgba(0, 0, 0, 0.62) 100%
+    );
+
+  transition: background var(--duration-med) var(--ease);
+}
+
+/* The same gradient inverted, for a photo bright enough that the UI has
+   switched to dark text (see the `[data-bg-tone='light']` block in
+   tokens.css). Deliberately a little weaker than the dark scrim: white haze
+   over a bright photo washes it out much faster than black does, and the dark
+   text it's supporting starts from a bigger contrast advantage. */
+.scrim[data-tone='light'] {
+  background:
+    linear-gradient(
+      to bottom,
+      rgba(255, 255, 255, 0.38) 0%,
+      rgba(255, 255, 255, 0.14) 28%,
+      rgba(255, 255, 255, 0.22) 68%,
+      rgba(255, 255, 255, 0.5) 100%
     );
 }

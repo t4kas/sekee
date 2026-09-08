@@ -13,8 +13,13 @@
  *     which restarts the fade-in animation on every new photo.
  *
  *  2. A gradient scrim sits between the photo and the UI. Without it, white
- *     text lands on a bright sky and becomes unreadable. It's darkest at the
+ *     text lands on a bright sky and becomes unreadable. It's strongest at the
  *     top and bottom, where the settings button and credit line live.
+ *
+ *     The scrim follows `tone` (from `useBackgroundTone`): over a light photo
+ *     the UI's own palette has inverted to dark text on dark glass, so a black
+ *     scrim would be working against it — it lightens the edges instead, for
+ *     the same reason and in the same places.
  */
 
 import styles from './Background.module.css';
@@ -22,8 +27,9 @@ import styles from './Background.module.css';
 /**
  * @param {object} props
  * @param {Photo|null} props.photo  null while the first photo is loading
+ * @param {'light'|'dark'} [props.tone]  brightness of `photo` — see the header
  */
-export function Background({ photo }) {
+export function Background({ photo, tone = 'dark' }) {
   return (
     <div
       className={styles.background}
@@ -43,7 +49,7 @@ export function Background({ photo }) {
         />
       )}
 
-      <div className={styles.scrim} />
+      <div className={styles.scrim} data-tone={tone} />
 
     </div>
   );

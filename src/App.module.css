@@ -11,6 +11,14 @@
   z-index: 1;
   pointer-events: none;
 
+  /* Re-resolves the inherited text colour *inside* this element, which is
+     what carries `data-bg-tone` (see App.jsx). `body` already sets the same
+     token, but it resolves it against `:root`'s value — so over a light photo
+     anything inheriting its colour rather than declaring one (bookmark tile
+     titles, most obviously) would stay white while everything that names the
+     token went dark. Identical to the inherited value in the dark palette. */
+  color: var(--fg-primary);
+
   display: flex;
   flex-direction: column;
   min-height: 100%;

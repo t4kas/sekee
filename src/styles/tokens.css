@@ -66,6 +66,12 @@
   --border: rgba(255, 255, 255, 0.18);
   --border-strong: rgba(255, 255, 255, 0.32);
 
+  /* The plate drawn behind favicons. Many are pure white on transparent and
+     would vanish into the glass without something behind them, so this has
+     to contrast with the *surfaces*, not with the text — which is why it's a
+     token of its own rather than another use of `--surface`. */
+  --icon-plate: rgba(255, 255, 255, 0.1);
+
   --blur: blur(20px) saturate(140%);
 
   /* --- Accent / state --------------------------------------------------- */
@@ -88,6 +94,68 @@
 
   /* --- Layout ----------------------------------------------------------- */
   --content-width: 720px; /* search bar + bookmarks share this measure */
+}
+
+/* ===========================================================================
+   Light-background palette
+   ---------------------------------------------------------------------------
+   Everything above assumes the UI sits on a dark-ish photo: white text, white
+   glass, a black scrim. Over a bright photo — snow, fog, a blown-out sky, a
+   white studio wall — that combination loses its contrast all at once, and no
+   amount of scrim fixes it without ruining the photo.
+
+   So the palette inverts instead. `useBackgroundTone` measures the photo and
+   App stamps `data-bg-tone="light"` on its own wrapper; these overrides then
+   inherit down into everything inside it — the search bar, the weather
+   widget, the group tabs, the bookmark tiles, the header controls and the
+   photo credit — because each of those is built from the tokens above rather
+   than from literal colours. Nothing component-side has to know this exists.
+
+   WHY THE WRAPPER AND NOT `:root`: dialogs, popovers, menus and tooltips are
+   portalled to `document.body`, outside that wrapper, so they keep the dark
+   tokens. That's deliberate — they're solid surfaces that cover the photo
+   entirely, so the photo's brightness says nothing about what they need, and
+   a settings sheet that changed colour with the wallpaper would be strange.
+   The solid surfaces that *are* in flow (the search suggestions, the AI
+   answer panel, the inline group-rename field) do flip, which is why
+   `--surface-solid` is overridden here too: they'd otherwise be dark panels
+   holding text that has just turned dark.
+   =========================================================================== */
+
+[data-bg-tone='light'] {
+  /* Near-black rather than pure black: the same softening the white
+     foregrounds get, so text reads as ink rather than as a hard edge. */
+  --fg-primary: rgba(12, 14, 20, 0.96);
+  --fg-secondary: rgba(12, 14, 20, 0.74);
+  --fg-muted: rgba(12, 14, 20, 0.56);
+
+  /* Dark glass. Slightly more opaque than the white version at each step,
+     because a dark tint over a bright photo reads as weaker than a light
+     tint over a dark one at the same alpha. */
+  --surface: rgba(16, 18, 24, 0.14);
+  --surface-hover: rgba(16, 18, 24, 0.22);
+  --surface-active: rgba(16, 18, 24, 0.3);
+  --surface-solid: rgba(250, 250, 252, 0.86);
+  --surface-opaque: rgb(248, 248, 251);
+
+  --border: rgba(16, 18, 24, 0.2);
+  --border-strong: rgba(16, 18, 24, 0.36);
+
+  --icon-plate: rgba(16, 18, 24, 0.16);
+
+  /* The default accent is a pale sky blue picked to glow against a dark
+     photo; on a light one it all but disappears, and it carries focus rings,
+     so it needs to be the darker end of the same hue instead. */
+  --accent: #1b62d6;
+  --accent-contrast: #ffffff;
+  --danger: #c62f2f;
+  --success: #10784c;
+
+  /* The dark-palette shadow exists to lift white text off a photo. Inverted,
+     the same job needs a light halo under dark text. */
+  --text-shadow: 0 1px 3px rgba(255, 255, 255, 0.5);
+  --shadow-md: 0 4px 16px rgba(12, 14, 20, 0.16);
+  --shadow-lg: 0 24px 60px rgba(12, 14, 20, 0.28);
 }
 
 /* The 16px floor `--text-input` exists for — see its comment above. Keyed to

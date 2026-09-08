@@ -160,6 +160,18 @@ Two specificity traps:
   winner decided by stylesheet order. `SearchBar` and `SettingsModal` both do
   this deliberately.
 
+`useBackgroundTone` measures the background photo and App stamps
+`data-bg-tone="light"` on its own wrapper when it's bright, which flips a
+second palette in `tokens.css` — dark text on dark glass, plus a light scrim —
+so the search bar, widgets, group tabs and bookmark tiles don't turn into white
+on white. Two consequences: **a new on-photo surface must be built from the
+tokens**, not from literal whites, or it won't follow; and the attribute is on
+the wrapper rather than `:root` deliberately, so the portalled dialogs, menus
+and tooltips outside it stay dark (they cover the photo entirely, so its
+brightness says nothing about what they need). `.app` also re-declares
+`color: var(--fg-primary)` because `body`'s copy resolves against `:root` and
+would otherwise leave anything that merely *inherits* its colour still white.
+
 Prefer React Aria's state attributes (`data-hovered`, `data-pressed`,
 `data-focus-visible`, `data-selected`) over CSS pseudo-classes on React Aria
 elements — except where the component genuinely doesn't emit them, as with the
