@@ -1,0 +1,52 @@
+.switch {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+  cursor: pointer;
+}
+
+.switch[data-disabled] {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.track {
+  --switch-height: 20px;
+  box-sizing: border-box;
+  width: calc(var(--switch-height) * 1.8);
+  height: var(--switch-height);
+  padding: 2px;
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  flex-shrink: 0;
+  transition: background var(--duration-fast) var(--ease), border-color var(--duration-fast) var(--ease);
+}
+
+.thumb {
+  width: calc(var(--switch-height) - 6px);
+  height: calc(var(--switch-height) - 6px);
+  border-radius: 50%;
+  background: var(--fg-primary);
+  transition: transform var(--duration-fast) var(--ease);
+}
+
+.switch[data-selected] .track {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.switch[data-selected] .thumb {
+  transform: translateX(calc(var(--switch-height) * 0.8));
+  background: var(--accent-contrast);
+}
+
+.switch[data-focus-visible] .track {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.label {
+  color: var(--fg-primary);
+  font-size: var(--text-md);
+}
