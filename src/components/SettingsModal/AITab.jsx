@@ -12,16 +12,20 @@
  * nothing to gate it behind.
  *
  * ACCOUNT COPY: the device-local key above is the one `askGemini` actually
- * uses. Signed-in users can additionally push a copy to their account with
- * "Save to account" — a separate opt-in write via
- * `geminiService.js`'s `saveGeminiApiKeyToAccount` (see that file's header
- * for why this is deliberately not the same path as the synced `settings`
- * blob). On mount, if this device has no key of its own but the account
- * does, that account copy is pulled down and saved locally too, so the key
+ * uses. Signed-in users can additionally flip on "Save to account", a toggle
+ * rather than a button because it represents a standing preference ("keep
+ * this key synced") rather than a one-off action: turning it on pushes the
+ * current key immediately, and while it's on, edits to the field debounce
+ * (800ms, so a fast paste doesn't fire a write per keystroke) into another
+ * push. Turning it off removes the account copy. Writes go through
+ * `geminiService.js`'s `saveGeminiApiKeyToAccount`/`removeGeminiApiKeyFromAccount`
+ * — a separate opt-in path from the synced `settings` blob (see that file's
+ * header for why). On mount, if this device has no key of its own but the
+ * account does, that copy is pulled down and saved locally too, so the key
  * only needs to be pasted once across devices.
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   getGeminiApiKey,
   setGeminiApiKey,
@@ -30,8 +34,10 @@ import {
   removeGeminiApiKeyFromAccount,
 } from '../../services/geminiService.js';
 import { TextField } from '../ui/TextField.jsx';
-import { Button } from '../ui/Button.jsx';
+import { Switch } from '../ui/Switch.jsx';
 import styles from './SettingsModal.module.css';
+
+const AUTO_SAVE_DELAY_MS = 800;
 
 /**
  * @param {object} props
@@ -40,11 +46,15 @@ import styles from './SettingsModal.module.css';
 export function AITab({ user }) {
   const [apiKey, setApiKeyValue] = useState('');
   const [isLoaded, setIsLoaded] = useState(false);
-  // The key currently saved to the account, or '' if none/signed out —
-  // drives whether the button reads "Save"/"Update"/"Saved" and whether
-  // "Remove from account" is shown at all.
-  const [accountKey, setAccountKey] = useState('');
-  const [saveState, setSaveState] = useState('idle'); // idle | saving | error
+  const [isSyncEnabled, setIsSyncEnabled] = useState(false);
+  const [syncError, setSyncError] = useState(false);
+
+  // Loading a fresh account copy on mount, and toggling the switch on/off,
+  // both write through this same effect's debounce below — this ref is
+  // what tells that effect "the field's current value already reflects the
+  // account, skip the push" instead of firing a redundant write right after
+  // either of those already-in-sync moments.
+  const skipNextAutoSave = useRef(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -65,7 +75,8 @@ export function AITab({ user }) {
         setApiKeyValue(deviceKey);
       }
 
-      setAccountKey(remoteKey);
+      skipNextAutoSave.current = true;
+      setIsSyncEnabled(Boolean(remoteKey));
       setIsLoaded(true);
     }
 
@@ -75,38 +86,66 @@ export function AITab({ user }) {
     };
   }, [user]);
 
+  // Debounced auto-save: while the toggle is on, any change to the key
+  // (typing, or the toggle just having been switched on) pushes the latest
+  // value to the account after a short pause. Clearing the field while
+  // synced turns the toggle back off and removes the account copy, since
+  // there's nothing left worth keeping there.
+  useEffect(() => {
+    if (!isLoaded || !isSyncEnabled) return;
+
+    if (skipNextAutoSave.current) {
+      skipNextAutoSave.current = false;
+      return;
+    }
+
+    const trimmedKey = apiKey.trim();
+    const timer = setTimeout(async () => {
+      try {
+        if (trimmedKey) {
+          await saveGeminiApiKeyToAccount(trimmedKey);
+        } else {
+          await removeGeminiApiKeyFromAccount();
+          setIsSyncEnabled(false);
+        }
+        setSyncError(false);
+      } catch (error) {
+        console.warn('[AITab] could not sync API key to account', error);
+        setSyncError(true);
+      }
+    }, AUTO_SAVE_DELAY_MS);
+
+    return () => clearTimeout(timer);
+    // Deliberately keyed on `apiKey` alone: `isSyncEnabled` toggling is
+    // handled directly by `handleSyncToggle` below, which fires its own
+    // (undebounced) write — re-running this effect for that same flip would
+    // just duplicate it.
+  }, [apiKey]);
+
   function handleChange(value) {
     setApiKeyValue(value);
     setGeminiApiKey(value);
-    setSaveState('idle');
   }
 
-  async function handleSaveToAccount() {
-    setSaveState('saving');
+  async function handleSyncToggle(nextEnabled) {
+    setIsSyncEnabled(nextEnabled);
+    setSyncError(false);
+
     try {
-      await saveGeminiApiKeyToAccount(apiKey);
-      setAccountKey(apiKey.trim());
-      setSaveState('idle');
+      if (nextEnabled) {
+        const trimmedKey = apiKey.trim();
+        if (trimmedKey) await saveGeminiApiKeyToAccount(trimmedKey);
+      } else {
+        await removeGeminiApiKeyFromAccount();
+      }
+      // The debounce effect above would otherwise fire again for this same
+      // value right after the toggle-driven write above.
+      skipNextAutoSave.current = true;
     } catch (error) {
-      console.warn('[AITab] could not save API key to account', error);
-      setSaveState('error');
+      console.warn('[AITab] could not sync API key to account', error);
+      setSyncError(true);
     }
   }
-
-  async function handleRemoveFromAccount() {
-    setSaveState('saving');
-    try {
-      await removeGeminiApiKeyFromAccount();
-      setAccountKey('');
-      setSaveState('idle');
-    } catch (error) {
-      console.warn('[AITab] could not remove API key from account', error);
-      setSaveState('error');
-    }
-  }
-
-  const trimmedKey = apiKey.trim();
-  const isSavedToAccount = isLoaded && trimmedKey.length > 0 && trimmedKey === accountKey;
 
   return (
     <div className={styles.section}>
@@ -121,26 +160,15 @@ export function AITab({ user }) {
 
       {user && (
         <>
-          <Button
-            className={styles.fullWidthButton}
-            onPress={handleSaveToAccount}
-            isDisabled={!trimmedKey || isSavedToAccount || saveState === 'saving'}
-          >
-            {isSavedToAccount ? 'Saved to account' : 'Save to account'}
-          </Button>
+          <Switch isSelected={isSyncEnabled} onChange={handleSyncToggle} isDisabled={!apiKey.trim() && !isSyncEnabled}>
+            Save to account
+          </Switch>
 
-          {accountKey && (
-            <p className={styles.hint}>
-              Synced to your account, so it carries over on other signed-in devices.{' '}
-              <Button variant="ghost" onPress={handleRemoveFromAccount} isDisabled={saveState === 'saving'}>
-                Remove from account
-              </Button>
-            </p>
+          {isSyncEnabled && (
+            <p className={styles.hint}>Synced to your account, so it carries over on other signed-in devices.</p>
           )}
 
-          {saveState === 'error' && (
-            <p className={styles.hintError}>Could not reach your account — try again in a moment.</p>
-          )}
+          {syncError && <p className={styles.hintError}>Could not reach your account — try again in a moment.</p>}
         </>
       )}
 
