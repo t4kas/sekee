@@ -24,6 +24,15 @@
  * keeps the `providerId` it was uploaded to so that case can be *named* in
  * the UI ("stored in Dropbox") instead of just failing quietly.
  *
+ * THE AVERAGE COLOUR IS MEASURED ONCE, AT UPLOAD, and kept on the record.
+ * `useBackgroundTone.js` flips the whole palette for a light background, and
+ * its own pixel measurement can't reach these images: it loads them with
+ * `crossOrigin` set, which a Dropbox temporary link (no CORS headers) fails
+ * outright, leaving the tone to fall back to `photo.color`. A hardcoded dark
+ * colour there would mean white-on-white text on someone's snowy wallpaper.
+ * Here the file is in hand and same-origin, so it can just be measured — and
+ * that also gets the first paint right, before any measurement runs.
+ *
  * NO URL IS EVER PERSISTED. Dropbox's links expire in hours and Drive's are
  * tab-lifetime `blob:` handles, so the record holds the PATH and every
  * viewing of an upload goes back through `resolvePhoto`/`releasePhoto`.
@@ -57,6 +66,63 @@ function extensionFor(file) {
   return fromType === 'jpeg' ? 'jpg' : (fromType ?? 'img');
 }
 
+/** Matches `Background.jsx`'s own base colour — used when an image can't be
+ *  measured, and for records written before colours were stored. */
+const DEFAULT_COLOR = '#14161c';
+
+/** Big enough to average fairly, small enough to be free. */
+const SAMPLE_SIZE = 16;
+
+/**
+ * The image's average colour, for the palette flip described above.
+ *
+ * Never throws: a browser without `createImageBitmap`, a file that decodes to
+ * nothing, a canvas that won't hand back a context — all of them just mean
+ * "no measurement", and the upload itself must not fail over it.
+ *
+ * @param {Blob} file
+ * @returns {Promise<string>} `#rrggbb`
+ */
+async function measureAverageColor(file) {
+  let bitmap = null;
+  try {
+    bitmap = await createImageBitmap(file);
+
+    const canvas = document.createElement('canvas');
+    canvas.width = SAMPLE_SIZE;
+    canvas.height = SAMPLE_SIZE;
+    const context = canvas.getContext('2d');
+    if (!context) return DEFAULT_COLOR;
+
+    // The downscale is the averaging — the same trick `backgroundTone.js`
+    // uses on the photo it measures over the network.
+    context.drawImage(bitmap, 0, 0, SAMPLE_SIZE, SAMPLE_SIZE);
+    const { data } = context.getImageData(0, 0, SAMPLE_SIZE, SAMPLE_SIZE);
+
+    const totals = [0, 0, 0];
+    let counted = 0;
+    for (let i = 0; i < data.length; i += 4) {
+      // Transparent pixels show the page, not the image (a PNG with a cut-out
+      // corner, say), so they'd pull the average toward a colour nobody sees.
+      if (data[i + 3] === 0) continue;
+      totals[0] += data[i];
+      totals[1] += data[i + 1];
+      totals[2] += data[i + 2];
+      counted += 1;
+    }
+    if (counted === 0) return DEFAULT_COLOR;
+
+    return `#${totals
+      .map((total) => Math.round(total / counted).toString(16).padStart(2, '0'))
+      .join('')}`;
+  } catch (error) {
+    console.warn('[custom-background] could not measure the image colour', error);
+    return DEFAULT_COLOR;
+  } finally {
+    bitmap?.close();
+  }
+}
+
 /** @returns {Promise<CustomBackground[]>} */
 export async function listCustomBackgrounds() {
   const stored = await storage.read(StorageKeys.customBackgrounds);
@@ -86,6 +152,10 @@ export async function addCustomBackground(file) {
   // which is the message the Personalisation tab shows.
   const store = getStore(FileScopes.personal);
 
+  // Before the upload: a file that can't even be decoded here is one the
+  // browser won't render as a background either.
+  const color = await measureAverageColor(file);
+
   const id = crypto.randomUUID();
   const path = `${FOLDER}/${id}.${extensionFor(file)}`;
   await store.upload(path, file, { contentType: file.type });
@@ -97,6 +167,9 @@ export async function addCustomBackground(file) {
     name: file.name,
     contentType: file.type,
     size: file.size,
+    /** Average colour — see the header. Shown under the image while it
+     *  loads, and what the palette's light/dark flip keys off. */
+    color,
     providerId: store.id,
     addedAt: Date.now(),
   };
@@ -159,7 +232,7 @@ export async function resolveCustomBackgroundPhoto(background) {
   return {
     id: background.id,
     imageUrl,
-    color: '#14161c',
+    color: background.color ?? DEFAULT_COLOR,
     altText: background.name,
     photographerName: '',
     photographerUrl: '',
