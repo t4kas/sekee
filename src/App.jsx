@@ -35,6 +35,7 @@ import { useFileProvider } from './hooks/useFileProvider.js';
 import { useBookmarks } from './hooks/useBookmarks.js';
 import { useBookmarkGroups } from './hooks/useBookmarkGroups.js';
 import { useFavorites } from './hooks/useFavorites.js';
+import { useCustomBackgrounds } from './hooks/useCustomBackgrounds.js';
 import { useSettings } from './hooks/useSettings.js';
 import { useBackground } from './hooks/useBackground.js';
 import { useBackgroundTone } from './hooks/useBackgroundTone.js';
@@ -84,7 +85,20 @@ export default function App() {
   // Favorites need to exist before useBackground can decide whether to show
   // one — see useBackground.js.
   const { favorites, addFavorite, removeFavorite } = useFavorites(sync.accountKey);
-  const { photo, isLoading: isLoadingBackground, refresh: refreshBackground } = useBackground(settings, favorites);
+  // Backgrounds the user uploaded to their own cloud storage. Keyed on both
+  // destinations because the feature has one foot in each: the records sync
+  // with everything else, the images live in the linked file provider — see
+  // the hook's header.
+  const custom = useCustomBackgrounds({
+    accountKey: sync.accountKey,
+    providerKey: files.providerId,
+    isProviderRestoring: files.isRestoring,
+  });
+  const {
+    photo,
+    isLoading: isLoadingBackground,
+    refresh: refreshBackground,
+  } = useBackground(settings, favorites, custom);
   /** `'light'` when the photo behind the UI is bright enough that white text
    *  on white glass would stop being readable. It's stamped onto `.app`
    *  below, where the `[data-bg-tone='light']` block in tokens.css picks it
@@ -349,6 +363,7 @@ export default function App() {
         signOut={signOut}
         sync={sync}
         files={files}
+        custom={custom}
         refreshBookmarks={refreshBookmarksAndGroups}
         refreshSettings={refreshSettings}
         groups={groups}

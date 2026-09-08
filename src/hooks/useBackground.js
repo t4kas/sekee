@@ -16,22 +16,40 @@
  * that branch happens; `getBackgroundPhoto` never sees the literal
  * `'favorites'` string, since it isn't a real category and would otherwise
  * get cached under a bogus pool key.
+ *
+ * UPLOADS: `settings.categoryId === 'custom'` is the same kind of sentinel
+ * for an image the user uploaded to their own cloud storage — pinned to
+ * `settings.customBackgroundId`, or shuffled among the uploads when that's
+ * null. Two things make it more than a copy of the favorites branch:
+ *
+ *  - Its URL is BORROWED. Drive hands back a `blob:` handle that holds the
+ *    image in memory until it's revoked, so every custom photo this hook
+ *    stops showing has to go back through `releaseCustomBackgroundPhoto`.
+ *    That's what `releasableRef` below is for.
+ *  - Resolving can fail (nothing linked on this device, a file deleted from
+ *    the user's own Drive), and a new-tab page still has to render — so a
+ *    null falls through to an ordinary category photo.
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getBackgroundPhoto, pickRandom, trackPhotoUse } from '../services/unsplashService.js';
 import { DEFAULT_CATEGORY_ID } from '../services/backgroundCategories.js';
+import {
+  releaseCustomBackgroundPhoto,
+  resolveCustomBackgroundPhoto,
+} from '../services/customBackgroundService.js';
 
 /**
  * Decides which photo to show: a favorite (shuffled or pinned) if that's
  * what's selected and there's at least one to choose from, otherwise a
  * normal Unsplash fetch for the category.
  *
- * @param {{categoryId: string, favoritesMode: string, pinnedFavoriteId: string|null}} settings
+ * @param {{categoryId: string, favoritesMode: string, pinnedFavoriteId: string|null, customBackgroundId: string|null}} settings
  * @param {Photo[]} favorites
+ * @param {CustomBackground[]} customBackgrounds
  * @returns {Promise<Photo>}
  */
-async function resolvePhoto(settings, favorites) {
+async function resolvePhoto(settings, favorites, customBackgrounds) {
   if (settings.categoryId === 'favorites' && favorites.length > 0) {
     if (settings.favoritesMode === 'fixed') {
       const pinned = favorites.find((favorite) => favorite.id === settings.pinnedFavoriteId);
@@ -42,12 +60,27 @@ async function resolvePhoto(settings, favorites) {
     return pickRandom(favorites);
   }
 
-  // Either an ordinary category, or 'favorites' with nothing to show yet
+  if (settings.categoryId === 'custom' && customBackgrounds.length > 0) {
+    const pinned = customBackgrounds.find(
+      (background) => background.id === settings.customBackgroundId,
+    );
+    // Same fallback as the pinned favorite above: an upload that's been
+    // deleted shouldn't strand the background on nothing.
+    const photo = await resolveCustomBackgroundPhoto(pinned ?? pickRandom(customBackgrounds));
+    if (photo) return photo;
+  }
+
+  // Either an ordinary category, or one of the sentinels with nothing to show yet
   // (signed out, or everything unfavorited) — fetch normally, falling back
   // to the default category rather than passing the sentinel through.
-  const categoryId = settings.categoryId === 'favorites' ? DEFAULT_CATEGORY_ID : settings.categoryId;
+  const isSentinel = settings.categoryId === 'favorites' || settings.categoryId === 'custom';
+  const categoryId = isSentinel ? DEFAULT_CATEGORY_ID : settings.categoryId;
   return getBackgroundPhoto(categoryId);
 }
+
+/** Default for the `custom` argument: a stable identity, so a caller that
+ *  doesn't use uploads doesn't re-run the effect below on every render. */
+const EMPTY_CUSTOM = { backgrounds: [], isLoading: false };
 
 /** Loads an image off-screen. Resolves either way — a photo that fails to
  *  decode still gets shown; the component just won't have the fade. */
@@ -61,11 +94,13 @@ function preloadImage(src) {
 }
 
 /**
- * @param {{categoryId: string, favoritesMode: string, pinnedFavoriteId: string|null}} settings
+ * @param {{categoryId: string, favoritesMode: string, pinnedFavoriteId: string|null, customBackgroundId: string|null}} settings
  * @param {Photo[]} favorites
+ * @param {{backgrounds: CustomBackground[], isLoading: boolean}} [custom] from
+ *   `useCustomBackgrounds` — the user's own uploaded images
  * @returns {{ photo: Photo|null, isLoading: boolean, refresh: () => void }}
  */
-export function useBackground(settings, favorites) {
+export function useBackground(settings, favorites, custom = EMPTY_CUSTOM) {
   const [photo, setPhoto] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -77,16 +112,44 @@ export function useBackground(settings, favorites) {
   // tracking endpoint pinged twice for one photo.
   const trackedPhotoIds = useRef(new Set());
 
+  // The custom photo currently on screen, if any. Its URL is borrowed from
+  // the file store (a `blob:` handle on Drive), so it has to be handed back
+  // the moment it stops being shown — see this file's header.
+  const releasableRef = useRef(null);
+
+  /** Shows a photo and releases whichever borrowed URL it displaces. */
+  const showPhoto = useCallback((nextPhoto) => {
+    if (releasableRef.current !== nextPhoto) releaseCustomBackgroundPhoto(releasableRef.current);
+    releasableRef.current = nextPhoto.isCustom ? nextPhoto : null;
+    setPhoto(nextPhoto);
+  }, []);
+
+  // Releasing on unmount as well: without this, opening and closing the page
+  // with an upload selected leaks the image for the life of the tab.
+  useEffect(() => {
+    return () => {
+      releaseCustomBackgroundPhoto(releasableRef.current);
+      releasableRef.current = null;
+    };
+  }, []);
+
   useEffect(() => {
     let isMounted = true;
+
+    // Nothing to pick from yet: the records, or the file provider holding the
+    // images, are still loading. Picking now would resolve to null and show
+    // an Unsplash photo that then visibly swaps — see useCustomBackgrounds.js.
+    if (settings.categoryId === 'custom' && custom.isLoading) return;
+
     setIsLoading(true);
 
-    resolvePhoto(settings, favorites)
+    resolvePhoto(settings, favorites, custom.backgrounds)
       .then(async (nextPhoto) => {
         await preloadImage(nextPhoto.imageUrl);
-        if (!isMounted) return;
+        // A borrowed URL nobody is going to show still has to go back.
+        if (!isMounted) return releaseCustomBackgroundPhoto(nextPhoto);
 
-        setPhoto(nextPhoto);
+        showPhoto(nextPhoto);
         setIsLoading(false);
 
         // The photo is now genuinely in use, which is the moment Unsplash's
@@ -106,10 +169,19 @@ export function useBackground(settings, favorites) {
     return () => {
       isMounted = false;
     };
-    // Deliberately NOT depending on `favorites` here — see the effect below
-    // for why. This one only re-picks on an actual settings change or an
+    // Deliberately NOT depending on `favorites` or `custom.backgrounds` here
+    // — see the effects below for why. This one only re-picks on an actual
+    // settings change, on the uploads becoming available at all, or on an
     // explicit "New photo".
-  }, [settings.categoryId, settings.favoritesMode, settings.pinnedFavoriteId, refreshCount]);
+  }, [
+    settings.categoryId,
+    settings.favoritesMode,
+    settings.pinnedFavoriteId,
+    settings.customBackgroundId,
+    custom.isLoading,
+    refreshCount,
+    showPhoto,
+  ]);
 
   // Re-pick when the photo on screen isn't one of the favorites but should
   // be. Two cases: the current one fell out of `favorites` (unfavorited from
@@ -140,6 +212,22 @@ export function useBackground(settings, favorites) {
     // logic above.
     setRefreshCount((count) => count + 1);
   }, [favorites, settings.categoryId, photo]);
+
+  // The upload on screen was just deleted from the Uploads sub-tab — pick
+  // again rather than leaving a photo whose file no longer exists.
+  //
+  // Only when the photo actually IS a custom one, which is the guard that
+  // matters: a failed resolve (nothing linked on this device) shows an
+  // Unsplash photo, which is never in `custom.backgrounds`, so testing the
+  // other way round would bump `refreshCount` forever — the same runaway the
+  // favorites effect above describes.
+  useEffect(() => {
+    if (settings.categoryId !== 'custom') return;
+    if (!photo?.isCustom) return;
+    if (custom.backgrounds.some((background) => background.id === photo.id)) return;
+
+    setRefreshCount((count) => count + 1);
+  }, [custom.backgrounds, settings.categoryId, photo]);
 
   const refresh = useCallback(() => setRefreshCount((count) => count + 1), []);
 

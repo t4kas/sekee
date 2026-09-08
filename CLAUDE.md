@@ -95,7 +95,13 @@ store, and the scope — not a provider name — is the decision:
   here. Paths are `<userId>/<name>`; the RLS policies key off that first
   segment, so getting the prefix wrong is rejected by Postgres.
 - `personal` → the user's linked Drive/Dropbox, registered by
-  `useFileProvider`. Their quota, their files.
+  `useFileProvider`. Their quota, their files. Uploaded backgrounds
+  (`customBackgroundService.js`) are the current user of this scope, and show
+  the shape it implies: the image goes here, while the record naming it goes
+  through `storage` like any other structured data. So the list of uploads
+  syncs between devices and the images don't — a device without that provider
+  linked resolves them to null, which `useBackground.js` treats as "fall back
+  to a category photo" rather than as an error.
 
 **Never persist a URL from the personal store.** Dropbox links expire in
 hours; Drive returns a tab-lifetime `blob:` handle, because serving a

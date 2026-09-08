@@ -174,6 +174,7 @@ export const StorageKeys = {
   settings: 'settings',
   photoCache: 'photo-cache',
   favorites: 'favorites',
+  customBackgrounds: 'custom-backgrounds',
   weatherGeocodeCache: 'weather-geocode-cache',
   weatherCache: 'weather-cache',
   geminiApiKey: 'gemini-api-key',
