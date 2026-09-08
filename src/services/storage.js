@@ -178,6 +178,15 @@ export const StorageKeys = {
   weatherGeocodeCache: 'weather-geocode-cache',
   weatherCache: 'weather-cache',
   geminiApiKey: 'gemini-api-key',
+  // A user-triggered COPY of the key above, not a sync target: written only
+  // when the user presses "Save to account" in AITab, read only through
+  // `getRemoteAdapter()` directly (see `geminiService.js`'s
+  // `saveGeminiApiKeyToAccount`/`getGeminiApiKeyFromAccount`) rather than
+  // through `storage`. Keeping it out of `DeviceLocalKeys` is what lets it
+  // reach `user_data`; keeping it out of the synced `settings` blob is what
+  // keeps a plaintext credential from riding along with every ordinary
+  // preference change.
+  geminiApiKeyRemote: 'gemini-api-key-remote',
 };
 
 /**
