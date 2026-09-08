@@ -28,7 +28,7 @@
  * instead of guessing from the HTTP status alone.
  */
 
-import { storage, StorageKeys } from './storage.js';
+import { storage, StorageKeys, getRemoteAdapter } from './storage.js';
 
 const API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 const MODEL = 'gemini-flash-lite-latest';
@@ -81,6 +81,43 @@ export function subscribeToGeminiApiKey(callback) {
 /** @param {string} apiKey */
 export function isGeminiConfigured(apiKey) {
   return Boolean(apiKey?.trim());
+}
+
+/**
+ * Account-sync for the key above — deliberately separate from
+ * `getGeminiApiKey`/`setGeminiApiKey`, which stay device-local (see
+ * `StorageKeys.geminiApiKey` in `storage.js`). These three go through
+ * `getRemoteAdapter()` directly, the same way `favoritesService.js` does,
+ * so "no account" means "no account copy" by construction: nothing here
+ * ever touches localStorage, and nothing here ever runs against the synced
+ * `settings` blob.
+ */
+
+/** @returns {Promise<string>} the account's saved key, or '' if signed out or none saved. */
+export async function getGeminiApiKeyFromAccount() {
+  const adapter = getRemoteAdapter();
+  if (!adapter) return '';
+
+  const key = await adapter.read(StorageKeys.geminiApiKeyRemote);
+  return typeof key === 'string' ? key : '';
+}
+
+/** @param {string} apiKey */
+export async function saveGeminiApiKeyToAccount(apiKey) {
+  const adapter = getRemoteAdapter();
+  if (!adapter) throw new Error('Sign in to save your API key to your account.');
+
+  const trimmed = apiKey.trim();
+  if (!trimmed) throw new Error('Enter an API key before saving it to your account.');
+
+  await adapter.write(StorageKeys.geminiApiKeyRemote, trimmed);
+}
+
+export async function removeGeminiApiKeyFromAccount() {
+  const adapter = getRemoteAdapter();
+  if (!adapter) return;
+
+  await adapter.remove(StorageKeys.geminiApiKeyRemote);
 }
 
 /**
