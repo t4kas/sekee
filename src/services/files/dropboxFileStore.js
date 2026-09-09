@@ -7,7 +7,7 @@
  * THE CONTRACT every file store implements — see `fileStorageService.js` for
  * how the two stores are chosen between:
  *
- *   upload(path, blob, {contentType}) -> Promise<FileRef>
+ *   upload(path, blob, {contentType}) -> Promise<FileRef>   (see `upload` below)
  *   download(path)                    -> Promise<Blob | null>   null if absent
  *   getViewUrl(path)                  -> Promise<string | null> for <img src>
  *   releaseViewUrl(url)               -> void   pairs with getViewUrl
@@ -62,12 +62,20 @@ export function createDropboxFileStore(session, onSessionChange) {
     /** No permanent public URLs — see the note above. */
     hasStableUrls: false,
 
-    async upload(path, blob, { contentType } = {}) {
+    // `contentType` is part of the shared store contract but is deliberately
+    // ignored here: Dropbox's content endpoints accept ONLY
+    // `application/octet-stream` and answer anything else — including the
+    // `image/png` a background upload would pass — with HTTP 400
+    // "Bad HTTP request: unexpected Content-Type". The header has to be set
+    // explicitly rather than omitted, because `fetch` would otherwise derive
+    // it from the Blob's own `type`. The real content type is Dropbox's to
+    // infer from the file extension.
+    async upload(path, blob) {
       const response = await authorizedFetch(`${CONTENT_URL}/files/upload`, {
         method: 'POST',
         headers: {
           'Dropbox-API-Arg': apiArg({ path: toDropboxPath(path), mode: 'overwrite', mute: true }),
-          'Content-Type': contentType || blob.type || 'application/octet-stream',
+          'Content-Type': 'application/octet-stream',
         },
         body: blob,
       });
