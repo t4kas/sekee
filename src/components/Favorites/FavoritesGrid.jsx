@@ -6,10 +6,12 @@
  * a modal of its own. Two jobs in one view rather than two separate UIs:
  *
  *  1. Browse/remove: every thumbnail has a remove button.
- *  2. Pick one to always show: when `settings.favoritesMode === 'fixed'`,
- *     clicking a thumbnail (not its remove button) pins it — the currently
- *     pinned one gets an accent ring. Clicking is inert for pinning while
- *     in "Shuffle" mode; removing still works either way.
+ *  2. Pick one to always show: clicking a thumbnail (not its remove button)
+ *     sets it as the background — `categoryId: 'favorites'`,
+ *     `favoritesMode: 'fixed'`, and `pinnedFavoriteId` all at once, so it
+ *     works regardless of whatever was previously selected on the
+ *     Background sub-tab. The currently pinned one gets an accent ring.
+ *     Removing works regardless of the current mode.
  */
 
 import { Button as AriaButton } from 'react-aria-components';
@@ -20,12 +22,15 @@ import styles from './FavoritesGrid.module.css';
 /**
  * @param {object} props
  * @param {Photo[]} props.favorites
- * @param {{favoritesMode: string, pinnedFavoriteId: string|null}} props.settings
+ * @param {{categoryId: string, favoritesMode: string, pinnedFavoriteId: string|null}} props.settings
  * @param {(changes: object) => void} props.onSettingsChange
  * @param {(photoId: string) => void} props.removeFavorite
  */
 export function FavoritesGrid({ favorites, settings, onSettingsChange, removeFavorite }) {
-  const isPinning = settings.favoritesMode === 'fixed';
+  const isPinned = (photo) =>
+    settings.categoryId === 'favorites' &&
+    settings.favoritesMode === 'fixed' &&
+    settings.pinnedFavoriteId === photo.id;
 
   if (favorites.length === 0) {
     return <p className={styles.empty}>No favorites yet — click the heart on a background to save it.</p>;
@@ -34,18 +39,23 @@ export function FavoritesGrid({ favorites, settings, onSettingsChange, removeFav
   return (
     <div className={styles.grid}>
       {favorites.map((photo) => {
-        const isPinned = isPinning && settings.pinnedFavoriteId === photo.id;
+        const pinned = isPinned(photo);
 
         return (
           <div key={photo.id} className={styles.tile}>
             <button
               type="button"
-              className={[styles.thumb, isPinned && styles.pinned].filter(Boolean).join(' ')}
+              className={[styles.thumb, pinned && styles.pinned].filter(Boolean).join(' ')}
               style={{ backgroundColor: photo.color }}
-              disabled={!isPinning}
-              onClick={() => onSettingsChange({ pinnedFavoriteId: photo.id })}
-              aria-pressed={isPinning ? isPinned : undefined}
-              title={isPinning ? 'Always show this photo' : undefined}
+              onClick={() =>
+                onSettingsChange({
+                  categoryId: 'favorites',
+                  favoritesMode: 'fixed',
+                  pinnedFavoriteId: photo.id,
+                })
+              }
+              aria-pressed={pinned}
+              title="Always show this photo"
             >
               <img src={photo.imageUrl} alt={photo.altText} className={styles.image} />
             </button>

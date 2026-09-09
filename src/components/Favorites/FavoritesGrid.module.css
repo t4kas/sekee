@@ -34,11 +34,7 @@
   transition: border-color var(--duration-fast) var(--ease);
 }
 
-.thumb:disabled {
-  cursor: default;
-}
-
-.thumb:not(:disabled):hover {
+.thumb:hover {
   border-color: var(--border-strong);
 }
 
